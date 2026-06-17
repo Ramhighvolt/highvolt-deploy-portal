@@ -26,7 +26,7 @@ export default function WebsitesSection({
       {loading ? (
         <div className="grid gap-5 md:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="hv-skeleton h-72 rounded-xl" />
+            <div key={i} className="hv-skeleton h-96 rounded-xl" />
           ))}
         </div>
       ) : websites.length === 0 ? (

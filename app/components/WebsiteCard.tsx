@@ -3,8 +3,7 @@ import DeploymentPipeline from "./DeploymentPipeline";
 import StatusBadge from "./StatusBadge";
 import {
   formatCommitSha,
-  formatDate,
-  formatRelativeTime,
+  formatDateIST,
   getHealthLabel,
   getStatusDotClasses,
   getStatusVariant,
@@ -16,12 +15,27 @@ type WebsiteCardProps = {
   variant?: "full" | "summary";
 };
 
+function getLatestDeployment(website: WebsiteStatus) {
+  return website.deploymentHistory?.[0] ?? null;
+}
+
+function formatPushedBy(
+  name: string | null | undefined,
+  email: string | null | undefined
+): string {
+  if (name && email) return `${name} (${email})`;
+  if (name) return name;
+  if (email) return email;
+  return "—";
+}
+
 export default function WebsiteCard({
   website,
   variant = "full",
 }: WebsiteCardProps) {
   const statusVariant = getStatusVariant(website.githubStatus);
   const health = getHealthLabel(website.githubStatus);
+  const latest = getLatestDeployment(website);
 
   const healthColor =
     statusVariant === "success"
@@ -46,13 +60,21 @@ export default function WebsiteCard({
         </div>
         <p className="mt-2 font-mono text-sm text-[#8b9bb4]">{website.domain}</p>
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-          <Meta label="Commit" value={formatCommitSha(website.commitSha)} mono />
-          <Meta label="Health" value={health} className={healthColor} />
           <Meta
-            label="Last run"
-            value={formatRelativeTime(website.lastRunAt)}
+            label="Deployed by"
+            value={latest?.deployedByEmail ?? "—"}
+            mono
           />
-          <Meta label="Branch" value={website.branch || "main"} mono />
+          <Meta label="Build" value={latest ? `#${latest.runNumber}` : "—"} mono />
+          <Meta
+            label="Commit"
+            value={latest?.shortCommitSha ?? formatCommitSha(website.commitSha)}
+            mono
+          />
+          <Meta
+            label="Started IST"
+            value={latest?.createdAtIST ?? formatDateIST(website.lastRunAt)}
+          />
         </div>
         <div className="mt-4">
           <DeploymentPipeline status={website.githubStatus} compact />
@@ -84,9 +106,60 @@ export default function WebsiteCard({
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Meta label="Repository" value={website.repo} mono />
         <Meta label="Branch" value={website.branch || "main"} mono />
-        <Meta label="Commit" value={formatCommitSha(website.commitSha)} mono />
-        <Meta label="Last run" value={formatDate(website.lastRunAt)} />
+        <Meta
+          label="Commit"
+          value={latest?.shortCommitSha ?? formatCommitSha(website.commitSha)}
+          mono
+        />
+        <Meta
+          label="Build"
+          value={latest ? `#${latest.runNumber}` : "—"}
+          mono
+        />
       </div>
+
+      {latest ? (
+        <div className="mt-5 rounded-lg border border-[#2a3548] bg-[#1c2535]/40 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#6b7d96]">
+            Latest deployment
+          </p>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <Meta
+              label="Deployed by"
+              value={latest.deployedByName || latest.deployedByEmail}
+            />
+            <Meta
+              label="Pushed by"
+              value={formatPushedBy(
+                latest.commitAuthorName,
+                latest.commitAuthorEmail
+              )}
+            />
+            <Meta
+              label="Commit message"
+              value={latest.commitMessage || "—"}
+              className="text-[#c5d0de] line-clamp-2"
+            />
+            <Meta label="Commit SHA" value={latest.shortCommitSha} mono />
+            <Meta label="Started IST" value={latest.createdAtIST} />
+            <Meta label="Completed IST" value={latest.updatedAtIST} />
+          </div>
+          {latest.runUrl && (
+            <a
+              href={latest.runUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex text-sm font-medium text-[#60a5fa] hover:text-[#93c5fd]"
+            >
+              View GitHub run →
+            </a>
+          )}
+        </div>
+      ) : (
+        <div className="mt-5 rounded-lg border border-dashed border-[#2a3548] px-4 py-6 text-center text-sm text-[#6b7d96]">
+          No deployment history yet
+        </div>
+      )}
 
       <div className="mt-5">
         <DeploymentPipeline status={website.githubStatus} />
@@ -133,6 +206,7 @@ function Meta({
       <p className="text-xs font-medium text-[#6b7d96]">{label}</p>
       <p
         className={`mt-0.5 truncate text-sm ${mono ? "font-mono" : ""} ${className}`}
+        title={value}
       >
         {value}
       </p>

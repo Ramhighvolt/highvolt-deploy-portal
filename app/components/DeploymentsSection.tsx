@@ -1,8 +1,7 @@
 "use client";
 
+import { flattenDeploymentHistory } from "@/lib/deployment-history";
 import {
-  formatCommitSha,
-  formatDate,
   getStatusVariant,
   type WebsiteStatus,
 } from "@/lib/status";
@@ -23,25 +22,31 @@ const FILTERS: { id: DeployFilter; label: string }[] = [
   { id: "deploying", label: "Deploying" },
 ];
 
+function formatPushedBy(
+  name: string | null | undefined,
+  email: string | null | undefined
+): string {
+  if (name && email) return `${name} (${email})`;
+  if (name) return name;
+  if (email) return email;
+  return "—";
+}
+
 export default function DeploymentsSection({
   websites,
   loading,
   filter,
   onFilterChange,
 }: DeploymentsSectionProps) {
-  const filtered = websites.filter((site) => {
-    const variant = getStatusVariant(site.githubStatus);
+  const historyRows = flattenDeploymentHistory(websites);
+
+  const filtered = historyRows.filter((row) => {
+    const variant = getStatusVariant(row.status);
     if (filter === "all") return true;
     if (filter === "success") return variant === "success";
     if (filter === "failed") return variant === "failed";
     if (filter === "deploying") return variant === "deploying";
     return true;
-  });
-
-  const sorted = [...filtered].sort((a, b) => {
-    if (!a.lastRunAt) return 1;
-    if (!b.lastRunAt) return -1;
-    return new Date(b.lastRunAt).getTime() - new Date(a.lastRunAt).getTime();
   });
 
   return (
@@ -64,75 +69,105 @@ export default function DeploymentsSection({
       </div>
 
       {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="hv-skeleton h-24 rounded-xl" />
-          ))}
-        </div>
-      ) : sorted.length === 0 ? (
+        <div className="hv-skeleton h-96 rounded-xl" />
+      ) : filtered.length === 0 ? (
         <div className="hv-panel rounded-xl px-8 py-12 text-center">
           <p className="text-[#8b9bb4]">No deployments match this filter</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {sorted.map((site) => (
-            <DeploymentRow key={site.id} site={site} />
-          ))}
+        <div className="hv-panel overflow-hidden rounded-xl">
+          <div className="border-b border-[#2a3548] px-5 py-4">
+            <h3 className="text-base font-semibold text-[#f0f4f8]">
+              Deployment History
+            </h3>
+            <p className="mt-0.5 text-sm text-[#6b7d96]">
+              Recent workflow runs from GitHub Actions (IST)
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1100px] text-left text-sm">
+              <thead className="border-b border-[#2a3548] bg-[#1c2535]/60 text-xs uppercase tracking-wide text-[#6b7d96]">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Website</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Deployed by</th>
+                  <th className="px-4 py-3 font-medium">Pushed by</th>
+                  <th className="px-4 py-3 font-medium">Commit</th>
+                  <th className="px-4 py-3 font-medium">Build</th>
+                  <th className="px-4 py-3 font-medium">Branch</th>
+                  <th className="px-4 py-3 font-medium">Started IST</th>
+                  <th className="px-4 py-3 font-medium">Completed IST</th>
+                  <th className="px-4 py-3 font-medium">Run</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((row) => (
+                  <tr
+                    key={`${row.websiteId}-${row.runId}`}
+                    className="border-b border-[#2a3548]/50 transition-colors hover:bg-[#1c2535]/40"
+                  >
+                    <td className="px-4 py-3 font-medium text-[#e8ecf1]">
+                      {row.websiteName}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={row.status} />
+                    </td>
+                    <td className="px-4 py-3 text-[#c5d0de]">
+                      {row.deployedByName || row.deployedByEmail}
+                    </td>
+                    <td className="px-4 py-3 text-[#c5d0de]">
+                      {formatPushedBy(
+                        row.commitAuthorName,
+                        row.commitAuthorEmail
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="max-w-[220px]">
+                        <p
+                          className="truncate font-mono text-[#60a5fa]"
+                          title={row.shortCommitSha}
+                        >
+                          {row.shortCommitSha}
+                        </p>
+                        {row.commitMessage && (
+                          <p
+                            className="mt-0.5 truncate text-xs text-[#6b7d96]"
+                            title={row.commitMessage}
+                          >
+                            {row.commitMessage}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-[#c5d0de]">
+                      #{row.runNumber}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-[#8b9bb4]">
+                      {row.branch || "—"}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-[#8b9bb4]">
+                      {row.createdAtIST}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-[#8b9bb4]">
+                      {row.updatedAtIST}
+                    </td>
+                    <td className="px-4 py-3">
+                      <a
+                        href={row.runUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-[#60a5fa] hover:text-[#93c5fd]"
+                      >
+                        View
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function DeploymentRow({ site }: { site: WebsiteStatus }) {
-  return (
-    <div className="hv-card rounded-xl p-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-3">
-            <h3 className="font-semibold text-[#f0f4f8]">{site.name}</h3>
-            <StatusBadge status={site.githubStatus} />
-          </div>
-          <p className="mt-1 font-mono text-sm text-[#8b9bb4]">{site.repo}</p>
-        </div>
-        {site.runUrl && (
-          <a
-            href={site.runUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-hv-secondary shrink-0 rounded-lg px-4 py-2 text-sm font-medium"
-          >
-            View Run
-          </a>
-        )}
-      </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-4">
-        <Field label="Branch" value={site.branch || "main"} />
-        <Field label="Commit" value={formatCommitSha(site.commitSha)} mono />
-        <Field label="Timestamp" value={formatDate(site.lastRunAt)} />
-        <Field label="Domain" value={site.domain} />
-      </div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div>
-      <p className="text-xs text-[#6b7d96]">{label}</p>
-      <p
-        className={`mt-0.5 text-sm text-[#c5d0de] ${mono ? "font-mono" : ""}`}
-      >
-        {value}
-      </p>
     </div>
   );
 }

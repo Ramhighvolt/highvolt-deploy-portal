@@ -1,3 +1,5 @@
+import type { DeploymentHistoryItem } from "@/lib/deployment-history";
+
 export type DeploymentStatus =
   | "Success"
   | "Deploying"
@@ -26,7 +28,10 @@ export type WebsiteStatus = {
   updatedAt?: string | null;
   commitSha?: string | null;
   branch?: string | null;
+  deploymentHistory?: DeploymentHistoryItem[];
 };
+
+export type { DeploymentHistoryItem };
 
 export type StatusVariant = "success" | "deploying" | "failed" | "unknown";
 
@@ -92,6 +97,8 @@ export function formatCommitSha(sha?: string | null): string {
   if (!sha) return "—";
   return sha.slice(0, 7);
 }
+
+export { formatDateIST } from "@/lib/deployment-history";
 
 export function getStatusBadgeClasses(status?: DeploymentStatus): string {
   const variant = getStatusVariant(status);

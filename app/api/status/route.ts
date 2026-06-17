@@ -1,34 +1,27 @@
 import { NextResponse } from "next/server";
 import { Octokit } from "octokit";
-import { websites } from "@/lib/websites";
+import {
+  mapWorkflowRunToHistoryItem,
+  type DeploymentHistoryItem,
+} from "@/lib/deployment-history";
 import { requireApiAuth } from "@/lib/require-api-auth";
+import { websites } from "@/lib/websites";
+
+const HISTORY_PAGE_SIZE = 10;
+
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
 });
-
-function mapStatus(status: string | null, conclusion: string | null) {
-  if (status === "queued") return "Queued";
-  if (status === "in_progress") return "Deploying";
-
-  if (status === "completed") {
-    if (conclusion === "success") return "Success";
-    if (conclusion === "failure") return "Failed";
-    if (conclusion === "cancelled") return "Cancelled";
-    if (conclusion === "timed_out") return "Timed Out";
-    return "Completed";
-  }
-
-  return "Unknown";
-}
 
 export async function GET() {
   const { response: authError } = await requireApiAuth();
   if (authError) return authError;
 
-  try {    const owner = process.env.GITHUB_OWNER || "HighVolt-Analytics";
-
+  try {
     const results = await Promise.all(
       websites.map(async (website) => {
+        const owner = process.env.GITHUB_OWNER || website.owner;
+
         try {
           const response = await octokit.request(
             "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
@@ -36,48 +29,58 @@ export async function GET() {
               owner,
               repo: website.repo,
               workflow_id: website.workflowFile,
-              per_page: 1,
+              per_page: HISTORY_PAGE_SIZE,
             }
           );
 
-          const latestRun = response.data.workflow_runs[0];
+          const runs = response.data.workflow_runs ?? [];
+          const deploymentHistory: DeploymentHistoryItem[] = runs.map(
+            mapWorkflowRunToHistoryItem
+          );
+          const latestRun = deploymentHistory[0];
 
           if (!latestRun) {
             return {
               ...website,
-              githubStatus: "No Runs",
+              githubStatus: "No Runs" as const,
               githubConclusion: null,
               runUrl: null,
               runId: null,
               lastRunAt: null,
+              updatedAt: null,
+              commitSha: null,
+              branch: null,
+              deploymentHistory: [],
             };
           }
 
           return {
             ...website,
-            githubStatus: mapStatus(
-              latestRun.status,
-              latestRun.conclusion
-            ),
-            githubRawStatus: latestRun.status,
+            githubStatus: latestRun.status,
+            githubRawStatus: latestRun.rawStatus,
             githubConclusion: latestRun.conclusion,
-            runUrl: latestRun.html_url,
-            runId: latestRun.id,
-            lastRunAt: latestRun.created_at,
-            updatedAt: latestRun.updated_at,
-            commitSha: latestRun.head_sha,
-            branch: latestRun.head_branch,
+            runUrl: latestRun.runUrl,
+            runId: latestRun.runId,
+            lastRunAt: latestRun.createdAt,
+            updatedAt: latestRun.updatedAt,
+            commitSha: latestRun.commitSha,
+            branch: latestRun.branch,
+            deploymentHistory,
           };
         } catch (error) {
           console.error(`Failed to fetch status for ${website.repo}`, error);
 
           return {
             ...website,
-            githubStatus: "Error",
+            githubStatus: "Error" as const,
             githubConclusion: "error",
             runUrl: null,
             runId: null,
             lastRunAt: null,
+            updatedAt: null,
+            commitSha: null,
+            branch: null,
+            deploymentHistory: [],
           };
         }
       })
