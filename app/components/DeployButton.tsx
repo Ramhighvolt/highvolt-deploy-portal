@@ -15,6 +15,7 @@ export default function DeployButton({
 }: DeployButtonProps) {
   const [buttonState, setButtonState] = useState<ButtonState>("ready");
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   async function handleDeploy() {
     const confirmed = window.confirm(
@@ -24,6 +25,7 @@ export default function DeployButton({
 
     setButtonState("loading");
     setErrorMessage("");
+    setSuccessMessage("");
 
     try {
       const response = await fetch("/api/deploy", {
@@ -39,6 +41,9 @@ export default function DeployButton({
       }
 
       setButtonState("started");
+      setSuccessMessage(
+        `Deployment queued by ${data.deployerEmail ?? "unknown user"}`
+      );
     } catch (error) {
       setButtonState("error");
       setErrorMessage(
@@ -76,6 +81,9 @@ export default function DeployButton({
         {label}
       </button>
       <span className="text-xs text-[#6b7d96]">Production action</span>
+      {buttonState === "started" && successMessage && (
+        <span className="text-xs text-emerald-400">{successMessage}</span>
+      )}
       {buttonState === "error" && errorMessage && (
         <span className="text-xs text-red-400">{errorMessage}</span>
       )}

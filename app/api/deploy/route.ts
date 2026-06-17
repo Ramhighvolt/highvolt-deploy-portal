@@ -7,10 +7,21 @@ const octokit = new Octokit({
 });
 
 export async function POST(request: Request) {
-  const { response: authError } = await requireApiAuth();
+  const { session, response: authError } = await requireApiAuth();
   if (authError) return authError;
 
-  try {    const body = await request.json();
+  const deployerEmail = session?.user?.email;
+  if (!deployerEmail) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  const deployerName = session?.user?.name || deployerEmail;
+
+  try {
+    const body = await request.json();
     const websiteId = body.websiteId;
 
     const website = websites.find((site) => site.id === websiteId);
@@ -31,12 +42,18 @@ export async function POST(request: Request) {
         repo: website.repo,
         workflow_id: website.workflowFile,
         ref: website.branch,
+        inputs: {
+          deployer_email: deployerEmail,
+          deployer_name: deployerName,
+          triggered_from: "HighVolt Deploy OS",
+        },
       }
     );
 
     return NextResponse.json({
       success: true,
       message: `Deployment started for ${website.name}`,
+      deployerEmail,
       website,
     });
   } catch (error) {
