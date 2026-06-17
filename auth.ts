@@ -3,17 +3,16 @@ import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import {
   extractMicrosoftEmailFields,
   getAllowedEmails,
+  isEmailAllowed,
+  normalizeEmail,
   toProfileRecord,
 } from "@/lib/auth-utils";
 
-// Auth.js v5 uses AUTH_URL; support legacy NEXTAUTH_URL in production (e.g. Vercel).
 if (!process.env.AUTH_URL && process.env.NEXTAUTH_URL) {
   process.env.AUTH_URL = process.env.NEXTAUTH_URL;
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  trustHost: true,
-  secret: process.env.AUTH_SECRET,
+export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     MicrosoftEntraID({
       clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
@@ -24,66 +23,78 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: "/login",
   },
+  session: {
+    strategy: "jwt",
+  },
   callbacks: {
-    signIn({ user, profile }) {
-      const allowedEmails = getAllowedEmails();
+    async signIn({ user, profile }) {
       const profileRecord = toProfileRecord(profile);
-      const {
-        userEmail,
-        profileEmail,
-        preferredUsername,
-        upn,
-        uniqueName,
-        mail,
-        selectedEmail,
-      } = extractMicrosoftEmailFields(user, profileRecord);
-
-      console.log("Auth allowed emails:", allowedEmails);
-      console.log("Microsoft profile keys:", Object.keys(profileRecord || {}));
-      console.log("Microsoft login email candidates:", {
-        userEmail,
-        profileEmail,
-        preferredUsername,
-        upn,
-        uniqueName,
-        mail,
-        selectedEmail,
-      });
+      const { selectedEmail } = extractMicrosoftEmailFields(user, profileRecord);
 
       if (!selectedEmail) {
-        console.log("Access denied: no Microsoft email found");
+        console.log("Microsoft login denied: no email candidate found");
         return false;
       }
 
-      if (!allowedEmails.includes(selectedEmail)) {
-        console.log("Access denied: email not allowed", selectedEmail);
+      if (!isEmailAllowed(selectedEmail)) {
+        console.log("Microsoft login denied:", selectedEmail);
         return false;
+      }
+
+      user.email = selectedEmail;
+      if (!user.name && typeof profileRecord?.name === "string") {
+        user.name = profileRecord.name;
       }
 
       console.log("Access granted:", selectedEmail);
       return true;
     },
-    session({ session, token }) {
-      if (session.user) {
-        const email =
-          typeof token.email === "string" ? token.email : session.user.email;
+    async jwt({ token, user, profile }) {
+      if (user) {
+        const profileRecord = toProfileRecord(profile);
+        const { selectedEmail } = extractMicrosoftEmailFields(user, profileRecord);
+        const email = selectedEmail ?? normalizeEmail(user.email);
+
         if (email) {
-          session.user.email = email.trim().toLowerCase();
+          token.email = email;
+        }
+        if (user.name) {
+          token.name = user.name;
         }
       }
-      return session;
-    },
-    jwt({ token, user, profile }) {
-      const profileRecord = toProfileRecord(profile);
-      const { selectedEmail } = extractMicrosoftEmailFields(user, profileRecord);
 
-      if (selectedEmail) {
-        token.email = selectedEmail;
-      } else if (typeof user?.email === "string") {
-        token.email = user.email.trim().toLowerCase();
-      }
-
+      console.log("JWT email:", token.email);
       return token;
     },
+    async session({ session, token }) {
+      if (session.user) {
+        if (typeof token.email === "string") {
+          session.user.email = token.email;
+        }
+        if (typeof token.name === "string") {
+          session.user.name = token.name;
+        }
+      }
+
+      console.log("Session email:", session.user?.email);
+      return session;
+    },
   },
+  events: {
+    async signIn({ user }) {
+      console.log("Microsoft login success:", normalizeEmail(user.email));
+    },
+  },
+  debug: process.env.NODE_ENV === "development",
 });
+
+export function getAuthDebugInfo() {
+  return {
+    allowedEmails: getAllowedEmails(),
+    hasAuthSecret: Boolean(process.env.AUTH_SECRET),
+    hasMicrosoftClientId: Boolean(process.env.AUTH_MICROSOFT_ENTRA_ID_ID),
+    hasMicrosoftClientSecret: Boolean(process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET),
+    hasMicrosoftIssuer: Boolean(process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER),
+    authUrl: process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? null,
+  };
+}
