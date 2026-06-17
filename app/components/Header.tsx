@@ -6,11 +6,14 @@ import {
 } from "@/lib/navigation";
 import type { WebsiteStatus } from "@/lib/status";
 
+import SignOutButton from "./SignOutButton";
+
 type HeaderProps = {
   activeSection: AppSection;
   lastRefresh: Date | null;
   websites: WebsiteStatus[];
   isRefreshing?: boolean;
+  userEmail: string;
 };
 
 export default function Header({
@@ -18,6 +21,7 @@ export default function Header({
   lastRefresh,
   websites,
   isRefreshing = false,
+  userEmail,
 }: HeaderProps) {
   const systemStatus = getSystemStatus(websites);
 
@@ -31,10 +35,14 @@ export default function Header({
             <Indicator label="GitHub Actions" value="connected" />
             <Indicator label="Hostinger SSH" value="active" />
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {isRefreshing && (
               <span className="text-xs text-[#60a5fa]">Syncing…</span>
             )}
+            <span className="hidden text-xs text-[#8b9bb4] sm:inline">
+              {userEmail}
+            </span>
+            <SignOutButton />
             <span className="hv-badge text-emerald-400">
               <span
                 className={`h-1.5 w-1.5 rounded-full ${

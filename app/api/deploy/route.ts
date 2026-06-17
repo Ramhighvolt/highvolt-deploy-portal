@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { Octokit } from "octokit";
 import { websites } from "@/lib/websites";
-
+import { requireApiAuth } from "@/lib/require-api-auth";
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
 });
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
+  const { response: authError } = await requireApiAuth();
+  if (authError) return authError;
+
+  try {    const body = await request.json();
     const websiteId = body.websiteId;
 
     const website = websites.find((site) => site.id === websiteId);

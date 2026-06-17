@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Octokit } from "octokit";
 import { websites } from "@/lib/websites";
-
+import { requireApiAuth } from "@/lib/require-api-auth";
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN,
 });
@@ -22,8 +22,10 @@ function mapStatus(status: string | null, conclusion: string | null) {
 }
 
 export async function GET() {
-  try {
-    const owner = process.env.GITHUB_OWNER || "HighVolt-Analytics";
+  const { response: authError } = await requireApiAuth();
+  if (authError) return authError;
+
+  try {    const owner = process.env.GITHUB_OWNER || "HighVolt-Analytics";
 
     const results = await Promise.all(
       websites.map(async (website) => {

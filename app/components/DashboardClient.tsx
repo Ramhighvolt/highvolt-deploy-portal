@@ -25,7 +25,7 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-export default function DashboardClient() {
+export default function DashboardClient({ userEmail }: { userEmail: string }) {
   const [activeSection, setActiveSection] = useState<AppSection>("overview");
   const [deployFilter, setDeployFilter] = useState<DeployFilter>("all");
   const [websites, setWebsites] = useState<WebsiteStatus[]>([]);
@@ -51,7 +51,13 @@ export default function DashboardClient() {
         signal: controller.signal,
       });
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        if (response.status === 401 && typeof window !== "undefined") {
+          window.location.href = "/login";
+          return;
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
 
       const data: StatusResponse = await response.json();
       if (!data.success) throw new Error(data.error || "Status unavailable");
@@ -120,6 +126,7 @@ export default function DashboardClient() {
           lastRefresh={lastRefresh}
           websites={websites}
           isRefreshing={isRefreshing}
+          userEmail={userEmail}
         />
 
         <SyncWarning visible={syncWarning && !loading} />
