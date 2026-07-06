@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import ClaritySection from "./ClaritySection";
+import GithubReposSection from "./GithubReposSection";
 import DeploymentsSection, {
   type DeployFilter,
 } from "./DeploymentsSection";
@@ -152,6 +153,7 @@ export default function DashboardClient({ userEmail }: { userEmail: string }) {
             {activeSection === "health" && <HealthSection {...sectionProps} />}
             {activeSection === "clarity" && <ClaritySection />}
             {activeSection === "super-admin" && <SuperAdminSection />}
+            {activeSection === "github-repos" && <GithubReposSection />}
             {activeSection === "settings" && <SettingsSection />}
           </div>
         </main>
