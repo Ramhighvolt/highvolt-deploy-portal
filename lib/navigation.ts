@@ -4,6 +4,8 @@ export type AppSection =
   | "deployments"
   | "logs"
   | "health"
+  | "clarity"
+  | "super-admin"
   | "settings";
 
 export const SECTION_TITLES: Record<AppSection, string> = {
@@ -12,6 +14,8 @@ export const SECTION_TITLES: Record<AppSection, string> = {
   deployments: "Deployments",
   logs: "Logs",
   health: "Health",
+  clarity: "Clarity",
+  "super-admin": "Super Admin",
   settings: "Settings",
 };
 
@@ -21,5 +25,7 @@ export const SECTION_DESCRIPTIONS: Record<AppSection, string> = {
   deployments: "Latest GitHub Actions runs across all properties",
   logs: "Run log access and streaming module",
   health: "Property health and deployment status",
+  clarity: "Microsoft Clarity analytics across production properties",
+  "super-admin": "Super Admin portal access for production properties",
   settings: "Platform configuration and environment",
 };

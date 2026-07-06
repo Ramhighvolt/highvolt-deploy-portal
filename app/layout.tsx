@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HighVolt Deploy Portal",
+  title: "HighVolt Deploy OS",
   description:
     "Internal deployment operating system for HighVolt and Quantum production properties.",
 };

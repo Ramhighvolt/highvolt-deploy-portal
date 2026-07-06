@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import ClarityLogo from "./ClarityLogo";
 import type { AppSection } from "@/lib/navigation";
 
 type SidebarProps = {
@@ -18,6 +19,8 @@ const navItems: {
   { id: "deployments", label: "Deployments", icon: DeploymentsIcon },
   { id: "logs", label: "Logs", icon: LogsIcon },
   { id: "health", label: "Health", icon: HealthIcon },
+  { id: "clarity", label: "Clarity", icon: ClarityNavIcon },
+  { id: "super-admin", label: "Super Admin", icon: SuperAdminIcon },
   { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
@@ -38,7 +41,7 @@ export default function Sidebar({
               <p className="text-base font-semibold tracking-tight text-[#f0f4f8]">
                 HighVolt
               </p>
-              <p className="text-xs font-medium text-[#60a5fa]">Deploy Portal</p>
+              <p className="text-xs font-medium text-[#60a5fa]">Deploy OS</p>
             </div>
           </div>
         </div>
@@ -139,6 +142,18 @@ function HealthIcon({ className }: { className?: string }) {
       <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
     </svg>
   );
+}
+
+function SuperAdminIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+    </svg>
+  );
+}
+
+function ClarityNavIcon({ className }: { className?: string }) {
+  return <ClarityLogo className={className} />;
 }
 
 function SettingsIcon({ className }: { className?: string }) {

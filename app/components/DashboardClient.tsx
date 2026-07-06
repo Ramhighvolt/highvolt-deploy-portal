@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import ClaritySection from "./ClaritySection";
 import DeploymentsSection, {
   type DeployFilter,
 } from "./DeploymentsSection";
@@ -10,6 +11,7 @@ import LogsSection from "./LogsSection";
 import OverviewSection from "./OverviewSection";
 import SettingsSection from "./SettingsSection";
 import Sidebar from "./Sidebar";
+import SuperAdminSection from "./SuperAdminSection";
 import SyncWarning from "./SyncWarning";
 import WebsitesSection from "./WebsitesSection";
 import { type AppSection } from "@/lib/navigation";
@@ -148,6 +150,8 @@ export default function DashboardClient({ userEmail }: { userEmail: string }) {
             )}
             {activeSection === "logs" && <LogsSection {...sectionProps} />}
             {activeSection === "health" && <HealthSection {...sectionProps} />}
+            {activeSection === "clarity" && <ClaritySection />}
+            {activeSection === "super-admin" && <SuperAdminSection />}
             {activeSection === "settings" && <SettingsSection />}
           </div>
         </main>
