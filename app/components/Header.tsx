@@ -66,7 +66,7 @@ export default function Header({
       <div className="flex flex-col gap-4 px-5 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <div>
           <p className="text-sm font-medium text-[#60a5fa]">
-            HighVolt Deploy OS
+            HighVolt Deploy Portal
           </p>
           <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-[#f0f4f8]">
             {SECTION_TITLES[activeSection]}

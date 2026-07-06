@@ -38,7 +38,7 @@ export default function Sidebar({
               <p className="text-base font-semibold tracking-tight text-[#f0f4f8]">
                 HighVolt
               </p>
-              <p className="text-xs font-medium text-[#60a5fa]">Deploy OS</p>
+              <p className="text-xs font-medium text-[#60a5fa]">Deploy Portal</p>
             </div>
           </div>
         </div>
