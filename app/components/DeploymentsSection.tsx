@@ -3,7 +3,6 @@
 import { flattenDeploymentHistory } from "@/lib/deployment-history";
 import {
   getStatusVariant,
-  type WebsiteStatus,
 } from "@/lib/status";
 import StatusBadge from "./StatusBadge";
 import type { SectionBaseProps } from "./OverviewSection";

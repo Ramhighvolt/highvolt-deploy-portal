@@ -76,21 +76,22 @@ export default function DashboardClient({ userEmail }: { userEmail: string }) {
       }
       setSyncWarning(true);
     } finally {
-      if (!mountedRef.current || controller.signal.aborted) return;
-      setLoading(false);
-      setIsRefreshing(false);
+      if (mountedRef.current && !controller.signal.aborted) {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     mountedRef.current = true;
-    fetchStatus(true);
-
+    const initialRefresh = window.setTimeout(() => void fetchStatus(true), 0);
     const interval = window.setInterval(() => fetchStatus(false), 15000);
 
     return () => {
       mountedRef.current = false;
       abortControllerRef.current?.abort();
+      window.clearTimeout(initialRefresh);
       window.clearInterval(interval);
     };
   }, [fetchStatus]);

@@ -29,6 +29,11 @@ export type WebsiteStatus = {
   commitSha?: string | null;
   branch?: string | null;
   deploymentHistory?: DeploymentHistoryItem[];
+  deploymentEnabled?: boolean;
+  deploymentTarget?: "staging" | "production";
+  liveDomainReachable?: boolean | null;
+  liveCommitSha?: string | null;
+  deployedCommitMatchesDomain?: boolean | null;
 };
 
 export type { DeploymentHistoryItem };
