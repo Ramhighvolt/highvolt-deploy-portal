@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createGitHubClient } from "@/lib/github-client";
-import { mapWorkflowRunToHistoryItem, type DeploymentHistoryItem } from "@/lib/deployment-history";
+import { classifyDeploymentJobs, mapWorkflowRunToHistoryItem, type DeploymentHistoryItem } from "@/lib/deployment-history";
 import { requireApiAuth } from "@/lib/require-api-auth";
 import { websites } from "@/lib/websites";
 
@@ -17,7 +17,18 @@ export async function GET() {
           owner: website.owner, repo: website.repo, workflow_id: website.workflowFile, per_page: HISTORY_PAGE_SIZE,
         });
         const deploymentHistory: DeploymentHistoryItem[] = (response.data.workflow_runs ?? []).map((run) => mapWorkflowRunToHistoryItem(run as Parameters<typeof mapWorkflowRunToHistoryItem>[0]));
-        const latestRun = deploymentHistory[0];
+        let latestRun = deploymentHistory[0];
+        if (website.id === "quantum-ledgerline" && latestRun?.rawStatus === "completed") {
+          try {
+            const jobsResponse = await octokit.request("GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs", {
+              owner: website.owner, repo: website.repo, run_id: latestRun.runId, per_page: 100,
+            });
+            latestRun = { ...latestRun, status: classifyDeploymentJobs(jobsResponse.data.jobs ?? []) };
+            deploymentHistory[0] = latestRun;
+          } catch (error) {
+            console.error("Failed to classify Ledgerline deployment outcome", { errorName: error instanceof Error ? error.name : "UnknownError" });
+          }
+        }
         let liveDomainReachable: boolean | null = null;
         let liveCommitSha: string | null = null;
         let deployedCommitMatchesDomain: boolean | null = null;
@@ -31,7 +42,7 @@ export async function GET() {
         }
         return {
           ...website,
-          ...(website.id === "quantum-ledgerline" ? { deploymentEnabled: process.env.LEDGERLINE_PRODUCTION_CUTOVER_ENABLED === "true" } : {}),
+          ...(website.id === "quantum-ledgerline" ? { deploymentEnabled: process.env.LEDGERLINE_PORTAL_DISPATCH_ENABLED === "true" } : {}),
           githubStatus: latestRun?.status ?? "No Runs",
           githubRawStatus: latestRun?.rawStatus ?? null,
           githubConclusion: latestRun?.conclusion ?? null,

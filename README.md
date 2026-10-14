@@ -49,11 +49,11 @@ Auth and deployment require these variables. Set them in the Vercel project **Se
 | `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | e.g. `https://login.microsoftonline.com/{tenant-id}/v2.0` |
 | `ALLOWED_EMAILS` | Comma-separated allowlist, lowercase recommended. e.g. `user@company.com,admin@company.com` |
 | `GITHUB_TOKEN` | Server-side token used for GitHub Actions history reads and workflow dispatches. Grant only the required repository access; never expose it to client code. |
-| `LEDGERLINE_PRODUCTION_CUTOVER_ENABLED` | Server-side gate for Ledgerline status/deploy controls; keep unset or `false` until separately approved after cutover readiness |
+| `LEDGERLINE_PORTAL_DISPATCH_ENABLED` | Server-side gate for Ledgerline dispatch controls. Set to `true` only after the Ledgerline repository gate is enabled; keep unset or `false` to pause portal dispatch. Never prefix it with `NEXT_PUBLIC_`. |
 
 **Microsoft redirect URI** (Azure portal):
 `https://webdeployment.highvolt.tech/api/auth/callback/microsoft-entra-id`
 
-Auth configuration lives in [`auth.ts`](./auth.ts) at the project root. Microsoft Entra sign-in and the `ALLOWED_EMAILS` authorization check are retained. Authentication logs do not include email addresses or profile fields. Ledgerline production dispatch remains paused until cutover is explicitly approved and the server-side release gate is configured.
+Auth configuration lives in [`auth.ts`](./auth.ts) at the project root. Microsoft Entra sign-in and the `ALLOWED_EMAILS` authorization check are retained. Authentication logs do not include email addresses or profile fields. Ledgerline portal dispatch remains paused unless the server-only `LEDGERLINE_PORTAL_DISPATCH_ENABLED` value is exactly `true`; the Ledgerline workflow has an independent production gate and separately validates the main SHA and confirmation.
 
 `GITHUB_OWNER` may remain in the Vercel project for compatibility with the existing environment, but dispatch routing is fixed by the server-side website map and does not accept an owner or repository override from the browser.

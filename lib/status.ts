@@ -5,6 +5,11 @@ export type DeploymentStatus =
   | "Deploying"
   | "Queued"
   | "Failed"
+  | "Failed Before Deployment"
+  | "Failed During Deployment"
+  | "Deployment Skipped"
+  | "Rolled Back Successfully"
+  | "Rollback Failed"
   | "Error"
   | "Timed Out"
   | "Cancelled"
@@ -41,10 +46,13 @@ export type { DeploymentHistoryItem };
 export type StatusVariant = "success" | "deploying" | "failed" | "unknown";
 
 export function getStatusVariant(status?: DeploymentStatus): StatusVariant {
-  if (status === "Success") return "success";
+  if (status === "Success" || status === "Rolled Back Successfully") return "success";
   if (status === "Deploying" || status === "Queued") return "deploying";
   if (
     status === "Failed" ||
+    status === "Failed Before Deployment" ||
+    status === "Failed During Deployment" ||
+    status === "Rollback Failed" ||
     status === "Error" ||
     status === "Timed Out" ||
     status === "Cancelled"
