@@ -166,7 +166,7 @@ export default function WebsiteCard({
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[#2a3548] pt-5">
-        <DeployButton websiteId={website.id} websiteName={website.name} />
+        <DeployButton websiteId={website.id} websiteName={website.name} disabled={website.deploymentEnabled === false} />
         {website.runUrl && (
           <a
             href={website.runUrl}

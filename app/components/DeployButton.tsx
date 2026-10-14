@@ -5,6 +5,7 @@ import { useState } from "react";
 type DeployButtonProps = {
   websiteId: string;
   websiteName: string;
+  disabled?: boolean;
 };
 
 type ButtonState = "ready" | "loading" | "started" | "error";
@@ -12,6 +13,7 @@ type ButtonState = "ready" | "loading" | "started" | "error";
 export default function DeployButton({
   websiteId,
   websiteName,
+  disabled = false,
 }: DeployButtonProps) {
   const [buttonState, setButtonState] = useState<ButtonState>("ready");
   const [errorMessage, setErrorMessage] = useState("");
@@ -23,6 +25,20 @@ export default function DeployButton({
     );
     if (!confirmed) return;
 
+    let releaseCommit: string | undefined;
+    let confirmProduction: string | undefined;
+    if (websiteId === "quantum-ledgerline") {
+      releaseCommit = window.prompt("Enter the exact 40-character commit SHA from main:") ?? undefined;
+      if (!releaseCommit) return;
+      if (!/^[a-f0-9]{40}$/.test(releaseCommit)) {
+        setButtonState("error");
+        setErrorMessage("Enter a valid 40-character lowercase commit SHA.");
+        return;
+      }
+      confirmProduction = window.prompt("Type DEPLOY to confirm this Ledgerline production release:") ?? undefined;
+      if (confirmProduction !== "DEPLOY") return;
+    }
+
     setButtonState("loading");
     setErrorMessage("");
     setSuccessMessage("");
@@ -31,7 +47,7 @@ export default function DeployButton({
       const response = await fetch("/api/deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ websiteId }),
+        body: JSON.stringify({ websiteId, ...(releaseCommit ? { releaseCommit, confirmProduction } : {}) }),
       });
 
       const data = await response.json();
@@ -72,7 +88,7 @@ export default function DeployButton({
       <button
         type="button"
         onClick={handleDeploy}
-        disabled={buttonState === "loading" || buttonState === "started"}
+        disabled={disabled || buttonState === "loading" || buttonState === "started"}
         className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all disabled:opacity-80 ${classes}`}
       >
         {buttonState === "loading" && (
@@ -80,7 +96,7 @@ export default function DeployButton({
         )}
         {label}
       </button>
-      <span className="text-xs text-[#6b7d96]">Production action</span>
+      <span className="text-xs text-[#6b7d96]">{disabled ? "Paused during migration preparation" : "Production action"}</span>
       {buttonState === "started" && successMessage && (
         <span className="text-xs text-emerald-400">{successMessage}</span>
       )}

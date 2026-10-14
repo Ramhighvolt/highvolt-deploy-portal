@@ -48,10 +48,12 @@ Auth and deployment require these variables. Set them in the Vercel project **Se
 | `AUTH_MICROSOFT_ENTRA_ID_SECRET` | Azure client secret |
 | `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | e.g. `https://login.microsoftonline.com/{tenant-id}/v2.0` |
 | `ALLOWED_EMAILS` | Comma-separated allowlist, lowercase recommended. e.g. `user@company.com,admin@company.com` |
-| `GITHUB_TOKEN` | GitHub PAT for Actions API (deploy/status) |
-| `GITHUB_OWNER` | Optional; defaults to `HighVolt-Analytics` |
+| `GITHUB_APP_ID` | GitHub App used by the portal for Actions API access |
+| `GITHUB_APP_INSTALLATION_ID` | Installation ID for the HighVolt repositories |
+| `GITHUB_APP_PRIVATE_KEY` | GitHub App private key (keep secret; never commit) |
+| `LEDGERLINE_PRODUCTION_CUTOVER_ENABLED` | Server-side gate for Ledgerline status/deploy controls; keep unset or `false` until separately approved after cutover readiness |
 
-**Microsoft redirect URI** (Azure portal):  
+**Microsoft redirect URI** (Azure portal):
 `https://webdeployment.highvolt.tech/api/auth/callback/microsoft-entra-id`
 
-Auth configuration lives in [`auth.ts`](./auth.ts) at the project root. Production sign-in logs (Vercel **Functions** / runtime logs) include resolved Microsoft email candidates when debugging `AccessDenied`.
+Auth configuration lives in [`auth.ts`](./auth.ts) at the project root. Microsoft Entra sign-in and the `ALLOWED_EMAILS` authorization check are retained. Authentication logs do not include email addresses or profile fields. Ledgerline production dispatch remains paused until cutover is explicitly approved and the server-side release gate is configured.

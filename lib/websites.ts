@@ -35,12 +35,13 @@ export const websites = [
     {
       id: "quantum-ledgerline",
       name: "Quantum Ledgerline",
-      domain: "quantumledgerlink.com",
-      repo: "Quantum-Ledgerline",
+      domain: "quantumledgerline.com",
+      repo: "Ledgerline",
       owner: "HighVolt-Analytics",
       workflowFile: "deploy.yml",
       branch: "main",
-      status: "Live",
-      lastDeploy: "Successful",
+      status: "Migration paused",
+      lastDeploy: "Not cut over",
+      deploymentTarget: "production",
     },
   ];

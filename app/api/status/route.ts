@@ -1,104 +1,57 @@
 import { NextResponse } from "next/server";
-import { Octokit } from "octokit";
-import {
-  mapWorkflowRunToHistoryItem,
-  type DeploymentHistoryItem,
-} from "@/lib/deployment-history";
+import { createGitHubClient } from "@/lib/github-app";
+import { mapWorkflowRunToHistoryItem, type DeploymentHistoryItem } from "@/lib/deployment-history";
 import { requireApiAuth } from "@/lib/require-api-auth";
 import { websites } from "@/lib/websites";
 
 const HISTORY_PAGE_SIZE = 10;
 
-const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN,
-});
-
 export async function GET() {
-  const { response: authError } = await requireApiAuth();
-  if (authError) return authError;
-
+  const { response } = await requireApiAuth();
+  if (response) return response;
   try {
-    const results = await Promise.all(
-      websites.map(async (website) => {
-        const owner = process.env.GITHUB_OWNER || website.owner;
-
-        try {
-          const response = await octokit.request(
-            "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
-            {
-              owner,
-              repo: website.repo,
-              workflow_id: website.workflowFile,
-              per_page: HISTORY_PAGE_SIZE,
-            }
-          );
-
-          const runs = response.data.workflow_runs ?? [];
-          const deploymentHistory: DeploymentHistoryItem[] = runs.map(
-            mapWorkflowRunToHistoryItem
-          );
-          const latestRun = deploymentHistory[0];
-
-          if (!latestRun) {
-            return {
-              ...website,
-              githubStatus: "No Runs" as const,
-              githubConclusion: null,
-              runUrl: null,
-              runId: null,
-              lastRunAt: null,
-              updatedAt: null,
-              commitSha: null,
-              branch: null,
-              deploymentHistory: [],
-            };
-          }
-
-          return {
-            ...website,
-            githubStatus: latestRun.status,
-            githubRawStatus: latestRun.rawStatus,
-            githubConclusion: latestRun.conclusion,
-            runUrl: latestRun.runUrl,
-            runId: latestRun.runId,
-            lastRunAt: latestRun.createdAt,
-            updatedAt: latestRun.updatedAt,
-            commitSha: latestRun.commitSha,
-            branch: latestRun.branch,
-            deploymentHistory,
-          };
-        } catch (error) {
-          console.error(`Failed to fetch status for ${website.repo}`, error);
-
-          return {
-            ...website,
-            githubStatus: "Error" as const,
-            githubConclusion: "error",
-            runUrl: null,
-            runId: null,
-            lastRunAt: null,
-            updatedAt: null,
-            commitSha: null,
-            branch: null,
-            deploymentHistory: [],
-          };
+    const octokit = createGitHubClient();
+    const results = await Promise.all(websites.map(async (website) => {
+      try {
+        const response = await octokit.request("GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs", {
+          owner: website.owner, repo: website.repo, workflow_id: website.workflowFile, per_page: HISTORY_PAGE_SIZE,
+        });
+        const deploymentHistory: DeploymentHistoryItem[] = (response.data.workflow_runs ?? []).map((run) => mapWorkflowRunToHistoryItem(run as Parameters<typeof mapWorkflowRunToHistoryItem>[0]));
+        const latestRun = deploymentHistory[0];
+        let liveDomainReachable: boolean | null = null;
+        let liveCommitSha: string | null = null;
+        let deployedCommitMatchesDomain: boolean | null = null;
+        if (website.id === "quantum-ledgerline") {
+          try {
+            const liveResponse = await fetch(`https://${website.domain}/deploy-info.txt`, { cache: "no-store", signal: AbortSignal.timeout(8000) });
+            liveDomainReachable = liveResponse.ok;
+            if (liveResponse.ok) liveCommitSha = (await liveResponse.text()).match(/^Commit:\\s*([a-f0-9]{40})\\s*$/im)?.[1] ?? null;
+            deployedCommitMatchesDomain = Boolean(latestRun?.commitSha && liveCommitSha && latestRun.commitSha.toLowerCase() === liveCommitSha.toLowerCase());
+          } catch { liveDomainReachable = false; deployedCommitMatchesDomain = false; }
         }
-      })
-    );
-
-    return NextResponse.json({
-      success: true,
-      websites: results,
-    });
+        return {
+          ...website,
+          ...(website.id === "quantum-ledgerline" ? { deploymentEnabled: process.env.LEDGERLINE_PRODUCTION_CUTOVER_ENABLED === "true" } : {}),
+          githubStatus: latestRun?.status ?? "No Runs",
+          githubRawStatus: latestRun?.rawStatus ?? null,
+          githubConclusion: latestRun?.conclusion ?? null,
+          runUrl: latestRun?.runUrl ?? null,
+          runId: latestRun?.runId ?? null,
+          lastRunAt: latestRun?.createdAt ?? null,
+          updatedAt: latestRun?.updatedAt ?? null,
+          commitSha: latestRun?.commitSha ?? null,
+          branch: latestRun?.branch ?? null,
+          deploymentHistory,
+          ...(website.id === "quantum-ledgerline" ? { liveDomainReachable, liveCommitSha, deployedCommitMatchesDomain } : {}),
+        };
+      } catch (error) {
+        console.error("Failed to fetch deployment status", { websiteId: website.id, errorName: error instanceof Error ? error.name : "UnknownError" });
+        return { ...website, githubStatus: "Error", githubConclusion: "error", runUrl: null, runId: null, lastRunAt: null, updatedAt: null, commitSha: null, branch: null, deploymentHistory: [] };
+      }
+    }));
+    return NextResponse.json({ success: true, websites: results }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    console.error("Failed to fetch deployment statuses:", error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch deployment statuses",
-      },
-      { status: 500 }
-    );
+    console.error("Failed to fetch deployment statuses", { errorName: error instanceof Error ? error.name : "UnknownError" });
+    return NextResponse.json({ success: false, error: "Failed to fetch deployment statuses" }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
 }
