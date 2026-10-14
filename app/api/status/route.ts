@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createGitHubClient } from "@/lib/github-app";
+import { createGitHubClient } from "@/lib/github-client";
 import { mapWorkflowRunToHistoryItem, type DeploymentHistoryItem } from "@/lib/deployment-history";
 import { requireApiAuth } from "@/lib/require-api-auth";
 import { websites } from "@/lib/websites";

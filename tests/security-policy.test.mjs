@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { websites } from "../lib/websites.ts";
 import {
@@ -67,4 +68,19 @@ test("Ledgerline remains paused until both the server gate and release confirmat
   assert.equal(productionDispatchError(ledgerline, "false", validCommit, "DEPLOY")?.status, 423);
   assert.equal(productionDispatchError(ledgerline, "true", "short", "DEPLOY")?.status, 400);
   assert.equal(productionDispatchError(ledgerline, "true", validCommit, "DEPLOY"), null);
+});
+
+test("GitHub token access is server-only and is not logged or returned", async () => {
+  const client = await readFile(new URL("../lib/github-client.ts", import.meta.url), "utf8");
+  const statusRoute = await readFile(new URL("../app/api/status/route.ts", import.meta.url), "utf8");
+  const deployRoute = await readFile(new URL("../app/api/deploy/route.ts", import.meta.url), "utf8");
+
+  assert.match(client, /import ["']server-only["']/);
+  assert.match(client, /process\.env\.GITHUB_TOKEN/);
+  assert.doesNotMatch(client, /console\.(?:log|info|warn|error)/);
+  assert.doesNotMatch(client, /NEXT_PUBLIC_GITHUB_TOKEN|return\s+token/);
+  assert.doesNotMatch(statusRoute, /GITHUB_TOKEN/);
+  assert.doesNotMatch(deployRoute, /GITHUB_TOKEN/);
+  assert.doesNotMatch(statusRoute, /token\s*:/i);
+  assert.doesNotMatch(deployRoute, /token\s*:/i);
 });

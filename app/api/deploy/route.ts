@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createGitHubClient } from "@/lib/github-app";
+import { createGitHubClient } from "@/lib/github-client";
 import { requireApiAuth } from "@/lib/require-api-auth";
 import { isSameOriginRequest, productionDispatchError, validateDispatchBody } from "@/lib/security-policy";
 import { websites } from "@/lib/websites";
