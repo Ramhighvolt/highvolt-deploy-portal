@@ -96,7 +96,7 @@ export default function DeployButton({
         )}
         {label}
       </button>
-      <span className="text-xs text-[#6b7d96]">{disabled ? "Paused during migration preparation" : "Production action"}</span>
+      <span className="text-xs text-[#6b7d96]">{disabled ? "Disabled by the server-side production gate" : "Production action"}</span>
       {buttonState === "started" && successMessage && (
         <span className="text-xs text-emerald-400">{successMessage}</span>
       )}

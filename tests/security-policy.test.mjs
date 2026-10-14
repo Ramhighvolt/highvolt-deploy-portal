@@ -8,6 +8,7 @@ import {
   productionDispatchError,
   validateDispatchBody,
 } from "../lib/security-policy.js";
+import { classifyDeploymentJobs } from "../lib/deployment-history.ts";
 
 test("missing and non-operator identities are rejected separately", () => {
   assert.deepEqual(authorizeLogin(null, "ram,ops"), { status: 401, role: null });
@@ -62,12 +63,22 @@ test("mutating requests require a same-origin browser request", () => {
   assert.equal(isSameOriginRequest("https://portal.example/api/deploy", "https://portal.example", "cross-site"), false);
 });
 
-test("Ledgerline remains paused until both the server gate and release confirmation are satisfied", () => {
+test("Ledgerline portal dispatch requires its own server-side gate and exact release confirmation", () => {
   const ledgerline = websites.find((site) => site.id === "quantum-ledgerline");
   const validCommit = "a".repeat(40);
   assert.equal(productionDispatchError(ledgerline, "false", validCommit, "DEPLOY")?.status, 423);
   assert.equal(productionDispatchError(ledgerline, "true", "short", "DEPLOY")?.status, 400);
   assert.equal(productionDispatchError(ledgerline, "true", validCommit, "DEPLOY"), null);
+});
+
+test("Ledgerline job outcomes distinguish skipped, successful, failed, and rolled-back deployments", () => {
+  assert.equal(classifyDeploymentJobs([{ name: "Build approved Ledgerline marketing site", conclusion: "skipped" }, { name: "Deploy and verify approved production release", conclusion: "skipped" }]), "Deployment Skipped");
+  assert.equal(classifyDeploymentJobs([{ name: "Build approved Ledgerline marketing site", conclusion: "failure" }, { name: "Deploy and verify approved production release", conclusion: "skipped" }]), "Failed Before Deployment");
+  assert.equal(classifyDeploymentJobs([{ name: "Deploy and verify approved production release", conclusion: "success" }]), "Success");
+  assert.equal(classifyDeploymentJobs([{ name: "Deploy and verify approved production release", conclusion: "failure", steps: [{ name: "Capture and verify pre-deployment production backup", conclusion: "failure" }] }]), "Failed Before Deployment");
+  assert.equal(classifyDeploymentJobs([{ name: "Deploy and verify approved production release", conclusion: "failure", steps: [{ name: "Overlay release without deleting unrelated or persistent files", conclusion: "failure" }] }]), "Failed During Deployment");
+  assert.equal(classifyDeploymentJobs([{ name: "Deploy and verify approved production release", conclusion: "failure", steps: [{ name: "Restore pre-deployment snapshot after a release failure", conclusion: "success" }] }]), "Rolled Back Successfully");
+  assert.equal(classifyDeploymentJobs([{ name: "Deploy and verify approved production release", conclusion: "failure", steps: [{ name: "Restore pre-deployment snapshot after a release failure", conclusion: "failure" }] }]), "Rollback Failed");
 });
 
 test("GitHub token access is server-only and is not logged or returned", async () => {
@@ -83,4 +94,6 @@ test("GitHub token access is server-only and is not logged or returned", async (
   assert.doesNotMatch(deployRoute, /GITHUB_TOKEN/);
   assert.doesNotMatch(statusRoute, /token\s*:/i);
   assert.doesNotMatch(deployRoute, /token\s*:/i);
+  assert.match(deployRoute, /LEDGERLINE_PORTAL_DISPATCH_ENABLED/);
+  assert.doesNotMatch(deployRoute, /LEDGERLINE_PRODUCTION_CUTOVER_ENABLED/);
 });

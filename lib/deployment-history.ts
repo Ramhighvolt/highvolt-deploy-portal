@@ -77,6 +77,37 @@ export function mapRunStatus(
   return "Unknown";
 }
 
+export function classifyDeploymentJobs(jobs: Array<{
+  name?: string | null;
+  conclusion?: string | null;
+  steps?: Array<{ name?: string | null; conclusion?: string | null }>;
+}>): "Success" | "Deployment Skipped" | "Failed Before Deployment" | "Failed During Deployment" | "Rolled Back Successfully" | "Rollback Failed" | "Cancelled" | "Unknown" {
+  const buildJob = jobs.find((job) => job.name === "Build approved Ledgerline marketing site");
+  const deployJob = jobs.find((job) => job.name === "Deploy and verify approved production release");
+  const rollback = deployJob?.steps?.find((step) => step.name === "Restore pre-deployment snapshot after a release failure");
+  if (rollback && rollback.conclusion !== "skipped") {
+    return rollback.conclusion === "success" ? "Rolled Back Successfully" : "Rollback Failed";
+  }
+
+  if (deployJob?.conclusion === "success") return "Success";
+  if (deployJob?.conclusion === "cancelled") return "Cancelled";
+  if (deployJob?.conclusion === "skipped") {
+    return buildJob?.conclusion === "failure" ? "Failed Before Deployment" : "Deployment Skipped";
+  }
+  if (deployJob?.conclusion !== "failure") return "Unknown";
+
+  const failedStep = deployJob?.steps?.find((step) => step.conclusion === "failure");
+  if (!failedStep || [
+    "Validate production configuration",
+    "Verify exact canonical target and SSH host",
+    "Reconfirm current main before taking the production snapshot",
+    "Capture and verify pre-deployment production backup",
+  ].includes(failedStep.name ?? "")) {
+    return "Failed Before Deployment";
+  }
+  return "Failed During Deployment";
+}
+
 const EMAIL_PATTERN = /[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/;
 
 export function parseDeployerFromRunName(

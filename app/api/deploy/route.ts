@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const selection = validateDispatchBody(body, websites);
     if (!selection.ok) return NextResponse.json({ success: false, error: selection.error }, { status: 400, headers: { "Cache-Control": "no-store" } });
     const website = selection.website;
-    const dispatchError = productionDispatchError(website, process.env.LEDGERLINE_PRODUCTION_CUTOVER_ENABLED, body.releaseCommit, body.confirmProduction);
+    const dispatchError = productionDispatchError(website, process.env.LEDGERLINE_PORTAL_DISPATCH_ENABLED, body.releaseCommit, body.confirmProduction);
     if (dispatchError) return NextResponse.json({ success: false, error: dispatchError.error }, { status: dispatchError.status, headers: { "Cache-Control": "no-store" } });
 
     const email = session?.user?.email;
