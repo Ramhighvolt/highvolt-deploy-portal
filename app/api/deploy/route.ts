@@ -4,6 +4,7 @@ import { requireApiAuth } from "@/lib/require-api-auth";
 import { isSameOriginRequest, productionDispatchError, validateDispatchBody } from "@/lib/security-policy";
 import { websites } from "@/lib/websites";
 import { hasActiveMainDeployment, LEDGERLINE_BRANCH, LEDGERLINE_OWNER, LEDGERLINE_REPO, LEDGERLINE_WORKFLOW, resolveLedgerlineMainRelease, validateLedgerlineReleaseConfirmation } from "@/lib/ledgerline-release";
+import { hasActiveQvmMainDeployment, QVM_BRANCH, QVM_OWNER, QVM_REPO, QVM_WORKFLOW, resolveQvmMainRelease, validateQvmReleaseConfirmation } from "@/lib/qvm-release";
 
 export async function POST(request: Request) {
   const { session, response } = await requireApiAuth();
@@ -17,7 +18,13 @@ export async function POST(request: Request) {
     const selection = validateDispatchBody(body, websites);
     if (!selection.ok) return NextResponse.json({ success: false, error: selection.error }, { status: 400, headers: { "Cache-Control": "no-store" } });
     const website = selection.website;
-    const dispatchError = productionDispatchError(website, process.env.LEDGERLINE_PORTAL_DISPATCH_ENABLED, body.releaseCommit, body.confirmProduction);
+    const dispatchError = productionDispatchError(
+      website,
+      process.env.LEDGERLINE_PORTAL_DISPATCH_ENABLED,
+      body.releaseCommit,
+      body.confirmProduction,
+      process.env.QVM_PORTAL_DISPATCH_ENABLED,
+    );
     if (dispatchError) return NextResponse.json({ success: false, error: dispatchError.error }, { status: dispatchError.status, headers: { "Cache-Control": "no-store" } });
 
     const email = session?.user?.email;
@@ -53,8 +60,47 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: "Ledgerline main changed after review. Review the latest release and confirm again." }, { status: 409, headers: { "Cache-Control": "no-store" } });
       }
     }
+
+    if (website.id === "quantum-visa-manager") {
+      const currentMain = await resolveQvmMainRelease(octokit);
+      const confirmation = validateQvmReleaseConfirmation(body.releaseCommit, body.confirmProduction, currentMain.sha);
+      if (!confirmation.ok) {
+        return NextResponse.json({ success: false, error: confirmation.reason === "stale_release" ? "Quantum Visa Manager main changed after review. Review the latest release and confirm again." : "Invalid Quantum Visa Manager release confirmation" }, { status: confirmation.reason === "stale_release" ? 409 : 400, headers: { "Cache-Control": "no-store" } });
+      }
+
+      const activeStatuses: Array<"queued" | "in_progress"> = ["queued", "in_progress"];
+      const [queuedResponse, runningResponse] = await Promise.all(activeStatuses.map((status) =>
+        octokit.request("GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs", {
+          owner: QVM_OWNER,
+          repo: QVM_REPO,
+          workflow_id: QVM_WORKFLOW,
+          branch: QVM_BRANCH,
+          status,
+          per_page: 100,
+        })
+      ));
+      const runs = [...(queuedResponse.data.workflow_runs ?? []), ...(runningResponse.data.workflow_runs ?? [])] as Array<{ head_branch?: string | null; status?: string | null }>;
+      if (hasActiveQvmMainDeployment(runs)) {
+        return NextResponse.json({ success: false, error: "A Quantum Visa Manager production deployment is already queued or running" }, { status: 409, headers: { "Cache-Control": "no-store" } });
+      }
+
+      const finalMain = await resolveQvmMainRelease(octokit);
+      const finalConfirmation = validateQvmReleaseConfirmation(body.releaseCommit, body.confirmProduction, finalMain.sha);
+      if (!finalConfirmation.ok) {
+        return NextResponse.json({ success: false, error: "Quantum Visa Manager main changed after review. Review the latest release and confirm again." }, { status: 409, headers: { "Cache-Control": "no-store" } });
+      }
+    }
+
     const inputs = website.id === "quantum-ledgerline"
       ? { release_commit: body.releaseCommit, confirm_production: "DEPLOY" }
+      : website.id === "quantum-visa-manager"
+        ? {
+            release_commit: body.releaseCommit,
+            confirm_production: "DEPLOY",
+            deployer_email: email,
+            deployer_name: session.user.name || email,
+            triggered_from: "HighVolt Deploy Portal",
+          }
       : { deployer_email: email, deployer_name: session.user.name || email, triggered_from: "HighVolt Deploy Portal" };
     await octokit.request("POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches", {
       owner: website.owner, repo: website.repo, workflow_id: website.workflowFile, ref: website.branch, inputs,

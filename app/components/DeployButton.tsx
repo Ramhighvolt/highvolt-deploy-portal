@@ -12,6 +12,14 @@ type ButtonState = "ready" | "review" | "loading" | "started" | "error";
 
 type ResolvedRelease = { sha: string; shortSha: string; message: string; committedAt: string | null };
 
+const GATED_WEBSITES = new Set(["quantum-ledgerline", "quantum-visa-manager"]);
+
+function releaseEndpoint(websiteId: string): string | null {
+  if (websiteId === "quantum-ledgerline") return "/api/deploy/ledgerline-release";
+  if (websiteId === "quantum-visa-manager") return "/api/deploy/qvm-release";
+  return null;
+}
+
 export default function DeployButton({
   websiteId,
   websiteName,
@@ -23,11 +31,12 @@ export default function DeployButton({
   const [release, setRelease] = useState<ResolvedRelease | null>(null);
 
   async function handleDeploy() {
-    if (websiteId === "quantum-ledgerline") {
+    const endpoint = releaseEndpoint(websiteId);
+    if (endpoint) {
       setButtonState("loading");
       setErrorMessage("");
       try {
-        const response = await fetch("/api/deploy/ledgerline-release", { cache: "no-store" });
+        const response = await fetch(endpoint, { cache: "no-store" });
         const data = await response.json();
         if (!response.ok || !data.success || !data.release) throw new Error(data.error || "Unable to resolve the current release");
         setRelease(data.release as ResolvedRelease);
@@ -73,7 +82,7 @@ export default function DeployButton({
     }
   }
 
-  async function confirmLedgerlineDeployment() {
+  async function confirmGatedDeployment() {
     if (!release) return;
     setButtonState("loading");
     setErrorMessage("");
@@ -131,14 +140,14 @@ export default function DeployButton({
         {label}
       </button>
       <span className="text-xs text-[#6b7d96]">{disabled ? "Disabled by the server-side production gate" : "Production action"}</span>
-      {buttonState === "review" && release && websiteId === "quantum-ledgerline" && (
-        <div className="mt-2 max-w-md rounded-lg border border-amber-400/30 bg-amber-400/5 p-3 text-sm" role="group" aria-label="Review Ledgerline production release">
+      {buttonState === "review" && release && GATED_WEBSITES.has(websiteId) && (
+        <div className="mt-2 max-w-md rounded-lg border border-amber-400/30 bg-amber-400/5 p-3 text-sm" role="group" aria-label={`Review ${websiteName} production release`}>
           <p className="font-semibold text-amber-200">Review current main release</p>
           <p className="mt-1 text-[#c5d0de]">Commit <code className="font-mono text-white">{release.shortSha}</code></p>
           <p className="mt-1 break-words text-[#c5d0de]">{release.message}</p>
           {release.committedAt && <p className="mt-1 text-xs text-[#8b9bb4]">Committed {new Date(release.committedAt).toLocaleString()}</p>}
           <div className="mt-3 flex gap-2">
-            <button type="button" onClick={confirmLedgerlineDeployment} className="btn-hv-primary rounded-lg px-3 py-1.5 text-xs font-semibold">Confirm deployment</button>
+            <button type="button" onClick={confirmGatedDeployment} className="btn-hv-primary rounded-lg px-3 py-1.5 text-xs font-semibold">Confirm deployment</button>
             <button type="button" onClick={cancelReview} className="btn-hv-secondary rounded-lg px-3 py-1.5 text-xs">Cancel</button>
           </div>
         </div>

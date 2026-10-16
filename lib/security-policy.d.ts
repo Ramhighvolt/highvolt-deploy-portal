@@ -16,9 +16,10 @@ export function validateDispatchBody<T extends { id: string }>(
 
 export function productionDispatchError(
   website: { id: string; deploymentEnabled?: boolean },
-  cutoverEnabled: string | undefined,
+  ledgerlinePortalDispatchEnabled: string | undefined,
   releaseCommit: string | undefined,
   confirmation: string | undefined,
+  qvmPortalDispatchEnabled?: string | undefined,
 ): { status: 400 | 423; error: string } | null;
 
 export function isSameOriginRequest(

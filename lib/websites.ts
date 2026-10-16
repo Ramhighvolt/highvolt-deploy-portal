@@ -44,4 +44,18 @@ export const websites = [
       lastDeploy: "Not cut over",
       deploymentTarget: "production",
     },
+    {
+      id: "quantum-visa-manager",
+      name: "Quantum Visa Manager",
+      domain: "quantumvisamanager.com",
+      repo: "Quantum-Visa-Manager",
+      owner: "HighVolt-Analytics",
+      workflowFile: "deploy.yml",
+      branch: "main",
+      // Isolated from Ledgerline/HVA/Agent/EduPass. Portal dispatch stays off until
+      // QVM_PORTAL_DISPATCH_ENABLED=true (separate from Ledgerline's gate).
+      status: "Prepared (isolated)",
+      lastDeploy: "Portal dispatch gated off",
+      deploymentTarget: "production",
+    },
   ];
