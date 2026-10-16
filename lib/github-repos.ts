@@ -45,4 +45,9 @@ export const GITHUB_REPOS: GithubRepo[] = [
     label: "Quantum Edupass Website",
     url: "https://github.com/HighVolt-Analytics/Quantum-Edupass",
   },
+  {
+    id: "quantum-visa-manager-website",
+    label: "Quantum Visa Manager Website",
+    url: "https://github.com/HighVolt-Analytics/Quantum-Visa-Manager",
+  },
 ];

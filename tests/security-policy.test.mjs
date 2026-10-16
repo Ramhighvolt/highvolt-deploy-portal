@@ -10,6 +10,7 @@ import {
 } from "../lib/security-policy.js";
 import { classifyDeploymentJobs } from "../lib/deployment-history.ts";
 import { hasActiveMainDeployment, resolveLedgerlineMainRelease, validateLedgerlineReleaseConfirmation } from "../lib/ledgerline-release.ts";
+import { hasActiveQvmMainDeployment, resolveQvmMainRelease, validateQvmReleaseConfirmation } from "../lib/qvm-release.ts";
 
 test("missing and non-operator identities are rejected separately", () => {
   assert.deepEqual(authorizeLogin(null, "ram,ops"), { status: 401, role: null });
@@ -38,17 +39,24 @@ test("dispatch only accepts a known project id and rejects caller-supplied routi
   }
 });
 
-test("all pre-existing HighVolt project mappings remain present", () => {
+test("all HighVolt project mappings remain present including Quantum Visa Manager", () => {
   assert.deepEqual(websites.map((site) => site.id), [
     "hva",
     "quantum-agent",
     "quantum-edupass",
     "quantum-ledgerline",
+    "quantum-visa-manager",
   ]);
   for (const website of websites.slice(0, 3)) {
     assert.equal(website.deploymentEnabled, undefined);
     assert.equal(website.owner, "HighVolt-Analytics");
   }
+  const qvm = websites.find((site) => site.id === "quantum-visa-manager");
+  assert.equal(qvm?.repo, "Quantum-Visa-Manager");
+  assert.equal(qvm?.owner, "HighVolt-Analytics");
+  assert.equal(qvm?.workflowFile, "deploy.yml");
+  assert.equal(qvm?.branch, "main");
+  assert.equal(qvm?.domain, "quantumvisamanager.com");
 });
 
 test("JSON body types and unexpected fields are rejected", () => {
@@ -70,6 +78,22 @@ test("Ledgerline portal dispatch requires its own server-side gate and exact rel
   assert.equal(productionDispatchError(ledgerline, "false", validCommit, "DEPLOY")?.status, 423);
   assert.equal(productionDispatchError(ledgerline, "true", "short", "DEPLOY")?.status, 400);
   assert.equal(productionDispatchError(ledgerline, "true", validCommit, "DEPLOY"), null);
+});
+
+test("Quantum Visa Manager portal dispatch requires its own server-side gate and exact release confirmation", () => {
+  const qvm = websites.find((site) => site.id === "quantum-visa-manager");
+  const validCommit = "a".repeat(40);
+  assert.equal(productionDispatchError(qvm, "true", validCommit, "DEPLOY", "false")?.status, 423);
+  assert.equal(productionDispatchError(qvm, "false", validCommit, "DEPLOY", "true"), null);
+  assert.equal(productionDispatchError(qvm, "true", "short", "DEPLOY", "true")?.status, 400);
+  assert.equal(productionDispatchError(qvm, "true", validCommit, "DEPLOY", "true"), null);
+  // Ledgerline gate must not authorize QVM when QVM gate is off.
+  assert.equal(productionDispatchError(qvm, "true", validCommit, "DEPLOY", undefined)?.status, 423);
+});
+
+test("legacy sites remain unaffected by Ledgerline and QVM portal gates", () => {
+  const hva = websites.find((site) => site.id === "hva");
+  assert.equal(productionDispatchError(hva, "false", undefined, undefined, "false"), null);
 });
 
 test("Ledgerline release resolution is fixed to the trusted repository main ref and returns display metadata", async () => {
@@ -123,6 +147,42 @@ test("Ledgerline endpoints retain allowlist, same-origin, and server-side dispat
   assert.match(deployRoute, /ref:\s*website\.branch/);
   assert.doesNotMatch(deployRoute, /body\.(?:owner|repo|branch|workflow|workflowFile)/);
   assert.doesNotMatch(releaseRoute, /request\.json|searchParams/);
+});
+
+test("Quantum Visa Manager uses an independent release endpoint and portal dispatch gate", async () => {
+  const deployRoute = await readFile(new URL("../app/api/deploy/route.ts", import.meta.url), "utf8");
+  const releaseRoute = await readFile(new URL("../app/api/deploy/qvm-release/route.ts", import.meta.url), "utf8");
+  assert.match(deployRoute, /QVM_PORTAL_DISPATCH_ENABLED/);
+  assert.match(deployRoute, /QVM_OWNER/);
+  assert.match(deployRoute, /QVM_REPO/);
+  assert.match(deployRoute, /QVM_WORKFLOW/);
+  assert.match(deployRoute, /release_commit:\s*body\.releaseCommit/);
+  assert.match(deployRoute, /confirm_production:\s*"DEPLOY"/);
+  assert.match(deployRoute, /deployer_email:\s*email/);
+  assert.match(releaseRoute, /requireApiAuth\(\)/);
+  assert.match(releaseRoute, /resolveQvmMainRelease/);
+  assert.doesNotMatch(releaseRoute, /request\.json|searchParams/);
+  assert.doesNotMatch(deployRoute, /QVM_PRODUCTION_CUTOVER_ENABLED/);
+});
+
+test("Quantum Visa Manager release resolution is fixed to Quantum-Visa-Manager main", async () => {
+  const sha = "e".repeat(40);
+  let request;
+  const release = await resolveQvmMainRelease({
+    async request(route, parameters) {
+      request = { route, parameters };
+      return { data: { sha, commit: { message: "QVM release", committer: { date: "2026-10-16T20:00:00Z" } } } };
+    },
+  });
+  assert.deepEqual(request, {
+    route: "GET /repos/{owner}/{repo}/commits/{ref}",
+    parameters: { owner: "HighVolt-Analytics", repo: "Quantum-Visa-Manager", ref: "main" },
+  });
+  assert.equal(release.sha, sha);
+  assert.equal(validateQvmReleaseConfirmation(sha, "DEPLOY", sha).ok, true);
+  assert.equal(validateQvmReleaseConfirmation(sha, "DEPLOY", "f".repeat(40)).ok, false);
+  assert.equal(hasActiveQvmMainDeployment([{ head_branch: "main", status: "queued" }]), true);
+  assert.equal(hasActiveQvmMainDeployment([{ head_branch: "feature", status: "in_progress" }]), false);
 });
 
 test("Ledgerline job outcomes distinguish skipped, successful, failed, and rolled-back deployments", () => {

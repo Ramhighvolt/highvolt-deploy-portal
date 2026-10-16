@@ -44,4 +44,16 @@ export const websites = [
       lastDeploy: "Not cut over",
       deploymentTarget: "production",
     },
+    {
+      id: "quantum-visa-manager",
+      name: "Quantum Visa Manager",
+      domain: "quantumvisamanager.com",
+      repo: "Quantum-Visa-Manager",
+      owner: "HighVolt-Analytics",
+      workflowFile: "deploy.yml",
+      branch: "main",
+      status: "Live",
+      lastDeploy: "Automatic deploy enabled",
+      deploymentTarget: "production",
+    },
   ];
