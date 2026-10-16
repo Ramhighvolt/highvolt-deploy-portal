@@ -52,8 +52,10 @@ export const websites = [
       owner: "HighVolt-Analytics",
       workflowFile: "deploy.yml",
       branch: "main",
-      status: "Live",
-      lastDeploy: "Automatic deploy enabled",
+      // Isolated from Ledgerline/HVA/Agent/EduPass. Portal dispatch stays off until
+      // QVM_PORTAL_DISPATCH_ENABLED=true (separate from Ledgerline's gate).
+      status: "Prepared (isolated)",
+      lastDeploy: "Portal dispatch gated off",
       deploymentTarget: "production",
     },
   ];
