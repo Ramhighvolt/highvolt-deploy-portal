@@ -9,6 +9,7 @@ import {
   validateDispatchBody,
 } from "../lib/security-policy.js";
 import { classifyDeploymentJobs } from "../lib/deployment-history.ts";
+import { hasActiveMainDeployment, resolveLedgerlineMainRelease, validateLedgerlineReleaseConfirmation } from "../lib/ledgerline-release.ts";
 
 test("missing and non-operator identities are rejected separately", () => {
   assert.deepEqual(authorizeLogin(null, "ram,ops"), { status: 401, role: null });
@@ -69,6 +70,59 @@ test("Ledgerline portal dispatch requires its own server-side gate and exact rel
   assert.equal(productionDispatchError(ledgerline, "false", validCommit, "DEPLOY")?.status, 423);
   assert.equal(productionDispatchError(ledgerline, "true", "short", "DEPLOY")?.status, 400);
   assert.equal(productionDispatchError(ledgerline, "true", validCommit, "DEPLOY"), null);
+});
+
+test("Ledgerline release resolution is fixed to the trusted repository main ref and returns display metadata", async () => {
+  const sha = "b".repeat(40);
+  let request;
+  const release = await resolveLedgerlineMainRelease({
+    async request(route, parameters) {
+      request = { route, parameters };
+      return { data: { sha, commit: { message: "  Release candidate\nwith notes  ", committer: { date: "2026-10-16T10:00:00Z" } } } };
+    },
+  });
+  assert.deepEqual(request, {
+    route: "GET /repos/{owner}/{repo}/commits/{ref}",
+    parameters: { owner: "HighVolt-Analytics", repo: "Ledgerline", ref: "main" },
+  });
+  assert.deepEqual(release, { sha, shortSha: sha.slice(0, 7), message: "Release candidate with notes", committedAt: "2026-10-16T10:00:00Z" });
+});
+
+test("Ledgerline release resolution rejects malformed GitHub commit metadata", async () => {
+  await assert.rejects(
+    resolveLedgerlineMainRelease({ async request() { return { data: { sha: "not-a-sha" } }; } }),
+    /Invalid commit metadata/,
+  );
+});
+
+test("Ledgerline confirmation accepts only the reviewed current main commit and explicit DEPLOY", () => {
+  const sha = "c".repeat(40);
+  assert.deepEqual(validateLedgerlineReleaseConfirmation(sha, "DEPLOY", sha), { ok: true });
+  assert.deepEqual(validateLedgerlineReleaseConfirmation(sha, "DEPLOY", "d".repeat(40)), { ok: false, reason: "stale_release" });
+  assert.deepEqual(validateLedgerlineReleaseConfirmation(sha, "deploy", sha), { ok: false, reason: "invalid_confirmation" });
+  assert.deepEqual(validateLedgerlineReleaseConfirmation("short", "DEPLOY", sha), { ok: false, reason: "invalid_confirmation" });
+});
+
+test("Ledgerline dispatch rejects an active main deployment but ignores unrelated branches", () => {
+  assert.equal(hasActiveMainDeployment([{ head_branch: "main", status: "queued" }]), true);
+  assert.equal(hasActiveMainDeployment([{ head_branch: "main", status: "in_progress" }]), true);
+  assert.equal(hasActiveMainDeployment([{ head_branch: "feature", status: "in_progress" }]), false);
+  assert.equal(hasActiveMainDeployment([{ head_branch: "main", status: "completed" }]), false);
+});
+
+test("Ledgerline endpoints retain allowlist, same-origin, and server-side dispatch-gate checks", async () => {
+  const deployRoute = await readFile(new URL("../app/api/deploy/route.ts", import.meta.url), "utf8");
+  const releaseRoute = await readFile(new URL("../app/api/deploy/ledgerline-release/route.ts", import.meta.url), "utf8");
+  assert.match(deployRoute, /requireApiAuth\(\)/);
+  assert.match(deployRoute, /isSameOriginRequest\(/);
+  assert.match(deployRoute, /LEDGERLINE_PORTAL_DISPATCH_ENABLED/);
+  assert.match(releaseRoute, /requireApiAuth\(\)/);
+  assert.match(deployRoute, /LEDGERLINE_OWNER/);
+  assert.match(deployRoute, /LEDGERLINE_REPO/);
+  assert.match(deployRoute, /LEDGERLINE_WORKFLOW/);
+  assert.match(deployRoute, /ref:\s*website\.branch/);
+  assert.doesNotMatch(deployRoute, /body\.(?:owner|repo|branch|workflow|workflowFile)/);
+  assert.doesNotMatch(releaseRoute, /request\.json|searchParams/);
 });
 
 test("Ledgerline job outcomes distinguish skipped, successful, failed, and rolled-back deployments", () => {
