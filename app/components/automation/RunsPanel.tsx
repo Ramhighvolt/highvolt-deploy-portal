@@ -22,6 +22,7 @@ import {
   timeAgo,
   useNow,
 } from "./shared";
+import FileViewer, { viewKind, type ViewKind } from "./FileViewer";
 
 /* ----------------------------- Run list ----------------------------- */
 
@@ -287,13 +288,6 @@ export function RunDetailPanel({
 
 /* ------------------------------ Results ------------------------------ */
 
-type Sheet = {
-  sheet: string;
-  rows: (string | number | null)[][];
-  totalRows: number;
-  truncated: boolean;
-};
-
 function dl(runId: number, suite: SuiteId, f: ArtifactFile, format = "original") {
   const qs = new URLSearchParams({
     suite,
@@ -304,11 +298,40 @@ function dl(runId: number, suite: SuiteId, f: ArtifactFile, format = "original")
   return `/api/automation/runs/${runId}/download?${qs}`;
 }
 
+const GROUP_ORDER = ["reports", "screenshots", "logs"];
+
+function groupOf(path: string): string {
+  return path.includes("/") ? path.split("/")[0] : "files";
+}
+
+function groupTitle(g: string): string {
+  return g === "files" ? "Files" : g.charAt(0).toUpperCase() + g.slice(1).replace(/[-_]/g, " ");
+}
+
+const KIND_BADGE: Record<ViewKind, string> = {
+  sheet: "bg-[#1f6f43]/25 text-[#5fd392]",
+  image: "bg-[#7c4dff]/20 text-[#b79cff]",
+  html: "bg-[#e8742c]/20 text-[#ffa66b]",
+  markdown: "bg-[#3b82f6]/20 text-[#7ab4ff]",
+  text: "bg-[#64748b]/25 text-[#b6c2d3]",
+};
+
+function ExtBadge({ ext }: { ext: string }) {
+  const kind = viewKind(ext);
+  return (
+    <span
+      className={`inline-flex h-8 w-10 shrink-0 items-center justify-center rounded-md font-mono text-[10px] font-semibold uppercase ${kind ? KIND_BADGE[kind] : "bg-[#1c2535] text-[#6b7d96]"}`}
+    >
+      {ext || "file"}
+    </span>
+  );
+}
+
 export function ResultsPanel({ suite, runId }: { suite: SuiteId; runId: number }) {
   const [files, setFiles] = useState<ArtifactFile[] | null>(null);
   const [artifacts, setArtifacts] = useState<ArtifactInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ file: ArtifactFile; sheets?: Sheet[]; error?: string } | null>(null);
+  const [viewing, setViewing] = useState<number | null>(null);
 
   useEffect(() => {
     let stopped = false;
@@ -324,18 +347,18 @@ export function ResultsPanel({ suite, runId }: { suite: SuiteId; runId: number }
     };
   }, [suite, runId]);
 
-  const openPreview = useCallback(
-    async (file: ArtifactFile) => {
-      setPreview({ file });
-      try {
-        const d = await api<{ sheets: Sheet[] }>(dl(runId, suite, file, "preview"));
-        setPreview({ file, sheets: d.sheets });
-      } catch (e) {
-        setPreview({ file, error: e instanceof Error ? e.message : "Preview failed" });
-      }
-    },
-    [runId, suite],
-  );
+  // Files that can be opened in-page, in display order (drives prev / next).
+  const viewable = useMemo(() => {
+    const rank = (f: ArtifactFile) => {
+      const i = GROUP_ORDER.indexOf(groupOf(f.path));
+      return i === -1 ? GROUP_ORDER.length : i;
+    };
+    return (files ?? [])
+      .filter((f) => viewKind(f.ext))
+      .sort((a, b) => a.artifactId - b.artifactId || rank(a) - rank(b) || a.path.localeCompare(b.path));
+  }, [files]);
+
+  const close = useCallback(() => setViewing(null), []);
 
   if (error) return <Toast tone="error">{error}</Toast>;
   if (!files)
@@ -353,115 +376,102 @@ export function ResultsPanel({ suite, runId }: { suite: SuiteId; runId: number }
       </p>
     );
 
-  const byArtifact = new Map<number, ArtifactFile[]>();
-  files.forEach((f) => byArtifact.set(f.artifactId, [...(byArtifact.get(f.artifactId) ?? []), f]));
-
   return (
     <div className="space-y-3 border-t border-[#2a3548] pt-4">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-[#f0f4f8]">Results</h4>
         <span className="sys-label">{files.length} file{files.length === 1 ? "" : "s"}</span>
       </div>
+      <p className="text-xs text-[#6b7d96]">Click any file to preview it here, or use the buttons to download.</p>
 
-      {usable.map((artifact) => (
-        <div key={artifact.id} className="overflow-hidden rounded-lg border border-[#2a3548]">
-          <div className="flex items-center justify-between gap-2 bg-[#1c2535]/60 px-3 py-2">
-            <p className="truncate font-mono text-xs text-[#8b9bb4]">{artifact.name}</p>
-            <a
-              href={`/api/automation/runs/${runId}/download?suite=${suite}&artifactId=${artifact.id}`}
-              className="btn-hv-secondary shrink-0 rounded-md px-2 py-1 text-xs font-medium"
-            >
-              All as .zip
-            </a>
-          </div>
-          <ul className="divide-y divide-[#2a3548]/60">
-            {(byArtifact.get(artifact.id) ?? []).map((f) => (
-              <li key={f.path} className="flex flex-wrap items-center gap-2 px-3 py-2">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-[#e8ecf1]" title={f.path}>{f.path}</p>
-                  <p className="text-[11px] text-[#6b7d96]">{formatBytes(f.size)}</p>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {f.ext === "xlsx" && (
-                    <button type="button" onClick={() => openPreview(f)} className="btn-hv-primary rounded-md px-2 py-1 text-xs font-medium">
-                      Preview
-                    </button>
-                  )}
-                  <a href={dl(runId, suite, f)} className="btn-hv-secondary rounded-md px-2 py-1 text-xs font-medium">
-                    {f.ext === "xlsx" ? "Excel" : f.ext ? `.${f.ext}` : "Download"}
-                  </a>
-                  {f.ext === "xlsx" && (
-                    <>
-                      <a href={dl(runId, suite, f, "csv")} className="btn-hv-secondary rounded-md px-2 py-1 text-xs font-medium">CSV</a>
-                      <a href={dl(runId, suite, f, "json")} className="btn-hv-secondary rounded-md px-2 py-1 text-xs font-medium">JSON</a>
-                    </>
-                  )}
-                </div>
-              </li>
+      {usable.map((artifact) => {
+        const mine = files.filter((f) => f.artifactId === artifact.id);
+        const groups = new Map<string, ArtifactFile[]>();
+        mine.forEach((f) => groups.set(groupOf(f.path), [...(groups.get(groupOf(f.path)) ?? []), f]));
+        const ordered = [...groups.entries()].sort(([a], [b]) => {
+          const ra = GROUP_ORDER.indexOf(a);
+          const rb = GROUP_ORDER.indexOf(b);
+          return (ra === -1 ? 99 : ra) - (rb === -1 ? 99 : rb) || a.localeCompare(b);
+        });
+        return (
+          <div key={artifact.id} className="overflow-hidden rounded-lg border border-[#2a3548]">
+            <div className="flex items-center justify-between gap-2 bg-[#1c2535]/60 px-3 py-2">
+              <p className="truncate font-mono text-xs text-[#8b9bb4]">{artifact.name}</p>
+              <a
+                href={`/api/automation/runs/${runId}/download?suite=${suite}&artifactId=${artifact.id}`}
+                className="btn-hv-secondary shrink-0 rounded-md px-2 py-1 text-xs font-medium"
+              >
+                All as .zip
+              </a>
+            </div>
+            {ordered.map(([group, list]) => (
+              <div key={group}>
+                {(ordered.length > 1 || group !== "files") && (
+                  <p className="sys-label border-t border-[#2a3548]/60 bg-[#151c28]/60 px-3 py-1.5">
+                    {groupTitle(group)} · {list.length}
+                  </p>
+                )}
+                <ul className="divide-y divide-[#2a3548]/60">
+                  {list
+                    .slice()
+                    .sort((a, b) => a.path.localeCompare(b.path))
+                    .map((f) => {
+                      const vi = viewable.findIndex((v) => v.artifactId === f.artifactId && v.path === f.path);
+                      const label = f.path.includes("/") ? f.path.slice(f.path.indexOf("/") + 1) : f.path;
+                      return (
+                        <li key={f.path} className="flex flex-wrap items-center gap-3 px-3 py-2">
+                          <ExtBadge ext={f.ext} />
+                          {vi >= 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setViewing(vi)}
+                              className="min-w-0 flex-1 text-left"
+                              title={`Preview ${f.path}`}
+                            >
+                              <p className="truncate text-sm text-[#e8ecf1] hover:text-[#58a6ff]">{label}</p>
+                              <p className="text-[11px] text-[#6b7d96]">{formatBytes(f.size)} · click to preview</p>
+                            </button>
+                          ) : (
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm text-[#e8ecf1]" title={f.path}>{label}</p>
+                              <p className="text-[11px] text-[#6b7d96]">{formatBytes(f.size)}</p>
+                            </div>
+                          )}
+                          <div className="flex flex-wrap gap-1.5">
+                            {vi >= 0 && (
+                              <button type="button" onClick={() => setViewing(vi)} className="btn-hv-primary rounded-md px-2 py-1 text-xs font-medium">
+                                Preview
+                              </button>
+                            )}
+                            <a href={dl(runId, suite, f)} className="btn-hv-secondary rounded-md px-2 py-1 text-xs font-medium">
+                              {f.ext === "xlsx" ? "Excel" : f.ext ? `.${f.ext}` : "Download"}
+                            </a>
+                            {f.ext === "xlsx" && (
+                              <>
+                                <a href={dl(runId, suite, f, "csv")} className="btn-hv-secondary rounded-md px-2 py-1 text-xs font-medium">CSV</a>
+                                <a href={dl(runId, suite, f, "json")} className="btn-hv-secondary rounded-md px-2 py-1 text-xs font-medium">JSON</a>
+                              </>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                </ul>
+              </div>
             ))}
-          </ul>
-        </div>
-      ))}
+          </div>
+        );
+      })}
 
-      {preview && <SheetPreview preview={preview} onClose={() => setPreview(null)} />}
-    </div>
-  );
-}
-
-function fmt(v: string | number | null): string {
-  if (v === null || v === "") return "";
-  if (typeof v === "number")
-    return v < 0
-      ? `(${Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
-      : v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return v;
-}
-
-function SheetPreview({
-  preview,
-  onClose,
-}: {
-  preview: { file: ArtifactFile; sheets?: Sheet[]; error?: string };
-  onClose: () => void;
-}) {
-  const sheet = preview.sheets?.[0];
-  return (
-    <div className="overflow-hidden rounded-lg border border-[#3d4f6a] bg-[#0d1219]">
-      <div className="flex items-center justify-between gap-2 border-b border-[#2a3548] px-3 py-2">
-        <p className="truncate text-xs font-medium text-[#c5d0de]">
-          Preview · {preview.file.path.split("/").pop()}
-        </p>
-        <button type="button" onClick={onClose} className="text-xs text-[#8b9bb4] hover:text-white">Close ✕</button>
-      </div>
-      {preview.error ? (
-        <div className="p-3"><Toast tone="error">{preview.error}</Toast></div>
-      ) : !sheet ? (
-        <p className="flex items-center gap-2 p-4 text-sm text-[#8b9bb4]"><Spinner /> Reading spreadsheet…</p>
-      ) : (
-        <div className="max-h-[420px] overflow-auto">
-          <table className="w-full border-collapse text-xs">
-            <tbody>
-              {sheet.rows.map((row, i) => (
-                <tr key={i} className="border-b border-[#1c2535]">
-                  <td className="w-9 select-none bg-[#151c28] px-2 py-1 text-right font-mono text-[10px] text-[#4b5b73]">{i + 1}</td>
-                  {row.map((cell, j) => (
-                    <td
-                      key={j}
-                      className={`whitespace-nowrap px-3 py-1 ${j === 0 ? "text-left text-[#e8ecf1]" : "text-right font-mono text-[#c5d0de]"}`}
-                    >
-                      {fmt(cell)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {sheet.truncated && (
-            <p className="p-2 text-center text-[11px] text-[#6b7d96]">
-              Showing first {sheet.rows.length} of {sheet.totalRows} rows. Download for the full file.
-            </p>
-          )}
-        </div>
+      {viewing !== null && viewable[viewing] && (
+        <FileViewer
+          files={viewable}
+          index={viewing}
+          suite={suite}
+          runId={runId}
+          onIndex={setViewing}
+          onClose={close}
+        />
       )}
     </div>
   );
