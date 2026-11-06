@@ -339,3 +339,32 @@ export async function xlsxToJson(bytes: Uint8Array): Promise<string> {
   const sheets = await readSheets(bytes);
   return JSON.stringify(sheets, null, 2);
 }
+
+/* ----------------------- in-page viewing ----------------------- */
+
+const XML_ENTITIES: Record<string, string> = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&apos;": "'",
+};
+
+/** Plain text of a .docx (paragraphs and table cells), no styling. */
+export function docxToText(bytes: Uint8Array): string {
+  const entry = unzipSync(bytes, { filter: (f) => f.name === "word/document.xml" })[
+    "word/document.xml"
+  ];
+  if (!entry) throw new Error("Not a valid .docx file");
+  return new TextDecoder()
+    .decode(entry)
+    .replace(/<w:tab\/>/g, "\t")
+    .replace(/<w:br\/>/g, "\n")
+    .replace(/<\/w:tc>/g, "\t")
+    .replace(/<\/w:p>/g, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&(amp|lt|gt|quot|apos);/g, (m) => XML_ENTITIES[m])
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}

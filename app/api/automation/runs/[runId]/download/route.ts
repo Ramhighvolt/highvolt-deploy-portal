@@ -1,5 +1,6 @@
 import { describeError, guard, jsonError, parseId, parseSuite } from "@/lib/automation-api";
 import {
+  docxToText,
   getArtifactZip,
   readArtifactFile,
   xlsxPreview,
@@ -17,8 +18,18 @@ const MIME: Record<string, string> = {
   xml: "application/xml; charset=utf-8",
   png: "image/png",
   jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
   pdf: "application/pdf",
+  md: "text/markdown; charset=utf-8",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 };
+
+const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp"]);
+const TEXT_EXT = new Set(["md", "txt", "log", "json", "csv", "xml", "yml", "yaml", "html"]);
+const MAX_VIEW_CHARS = 1_500_000;
+const MAX_VIEW_IMAGE_BYTES = 12 * 1024 * 1024;
 
 function attachment(name: string) {
   const safe = name.replace(/[^\w.\- ]+/g, "_");
@@ -62,6 +73,36 @@ export async function GET(
     const ext = (/\.([a-z0-9]+)$/i.exec(base)?.[1] ?? "").toLowerCase();
     const isXlsx = ext === "xlsx";
 
+    if (format === "view") {
+      // In-page viewing. Raster images are served inline (never SVG); every
+      // other type is returned as data and rendered safely by the client.
+      if (IMAGE_EXT.has(ext)) {
+        if (bytes.length > MAX_VIEW_IMAGE_BYTES)
+          return jsonError("Image is too large to preview. Download it instead.", 413);
+        return new Response(Buffer.from(bytes), {
+          headers: {
+            ...headers,
+            "Content-Type": MIME[ext],
+            "Content-Disposition": "inline",
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+          },
+        });
+      }
+      if (ext === "docx" || TEXT_EXT.has(ext)) {
+        const full = ext === "docx" ? docxToText(bytes) : new TextDecoder().decode(bytes);
+        const truncated = full.length > MAX_VIEW_CHARS;
+        return Response.json(
+          {
+            success: true,
+            kind: ext === "html" ? "html" : ext === "md" ? "markdown" : "text",
+            text: truncated ? full.slice(0, MAX_VIEW_CHARS) : full,
+            truncated,
+          },
+          { headers },
+        );
+      }
+      return jsonError("No in-page preview for this file type. Download it instead.", 400);
+    }
     if (format === "preview") {
       if (!isXlsx) return jsonError("Preview is only available for .xlsx files", 400);
       return Response.json({ success: true, sheets: await xlsxPreview(bytes) }, { headers });
