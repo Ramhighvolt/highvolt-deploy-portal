@@ -92,6 +92,7 @@ test("booking routes keep the API token server-side and match the documented sta
   assert.match(route, /\/api\/v2\/staff\/microsoft-bookings/);
   assert.match(ui, /Questions and answers/);
   assert.match(ui, /Legacy QVM bookings \(v1\)/);
-  assert.match(ui, /New bookings \(v2\)/);
+  assert.match(ui, /Previous month/);
+  assert.match(ui, /\+\{overflow\} more/);
   assert.doesNotMatch(ui, /BOOKINGS_PORTAL_API_TOKEN/);
 });

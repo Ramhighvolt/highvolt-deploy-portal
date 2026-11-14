@@ -10,9 +10,9 @@ The portal does not store SQL passwords, connection strings, or the database ser
 
 Anyone who already passes Entra sign-in and `ALLOWED_EMAILS` can read bookings. There is no second viewer list. The API token stays in the server route and is not returned to the browser.
 
-The page reads each site separately and combines the results. One site that cannot be read stays marked unavailable. Existing Microsoft Bookings appointments are shown read-only and are not recreated.
+The page shows a month calendar grid with weekday headings and day cells. Previous month, Next month, Today, site, and assignee filters remain available. Bookings appear inside their date; overflow uses a “+N more” control. Clicking a booking or “+N more” opens a popup with site, attendee, time and timezone, assignee, status, and that site’s questions and answers. The popup closes with Close, Escape, or an outside click.
 
-The detail view keeps a shared summary (site, name, email, appointment time, timezone, status) and a separate questions-and-answers section. Each site uses that website’s real question labels and form order. Only submitted answers are shown; unrecognized returned fields stay visible and are labelled. Legacy QVM v1 bookings are listed separately from new v2 bookings.
+One site that cannot be read stays marked unavailable. Existing Microsoft Bookings appointments are shown read-only and are not recreated. Legacy QVM v1 bookings stay in a separate read-only list (and still appear on the calendar when dated).
 
 Calendar invitees (visitor and staff) stay separate from staff email status. `create_unconfirmed` stays visible until a lookup finds the event. `send_unconfirmed` is not retried.
 
