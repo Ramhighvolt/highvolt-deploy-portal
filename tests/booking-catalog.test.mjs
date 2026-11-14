@@ -84,7 +84,7 @@ test("booking routes keep the API token server-side and match the documented sta
   for (const source of [route, detail, legacy]) {
     assert.match(source, /requireApiAuth\(\)/);
     assert.match(source, /BOOKINGS_PORTAL_API_TOKEN/);
-    assert.doesNotMatch(source, /NextResponse\.json\([^\)]*BOOKINGS_PORTAL_API_TOKEN/);
+    assert.doesNotMatch(source, /NextResponse\.json\([^)]*BOOKINGS_PORTAL_API_TOKEN/);
   }
   assert.match(route, /\/api\/v2\/staff\/bookings/);
   assert.match(detail, /\/api\/v2\/staff\/bookings\//);
