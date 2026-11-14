@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import BookingsSection from "./BookingsSection";
 import AutomationSection from "./automation/AutomationSection";
 import ClaritySection from "./ClaritySection";
 import GithubReposSection from "./GithubReposSection";
@@ -157,6 +158,7 @@ export default function DashboardClient({ userEmail }: { userEmail: string }) {
             {activeSection === "super-admin" && <SuperAdminSection />}
             {activeSection === "github-repos" && <GithubReposSection />}
             {activeSection === "automation" && <AutomationSection />}
+            {activeSection === "bookings" && <BookingsSection />}
             {activeSection === "settings" && <SettingsSection />}
           </div>
         </main>

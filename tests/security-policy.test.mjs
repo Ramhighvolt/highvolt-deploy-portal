@@ -40,23 +40,61 @@ test("dispatch only accepts a known project id and rejects caller-supplied routi
 });
 
 test("all HighVolt project mappings remain present including Quantum Visa Manager", () => {
-  assert.deepEqual(websites.map((site) => site.id), [
-    "hva",
-    "quantum-agent",
-    "quantum-edupass",
-    "quantum-ledgerline",
-    "quantum-visa-manager",
-  ]);
+  assert.deepEqual(
+    websites.map((site) => ({
+      id: site.id,
+      domain: site.domain,
+      owner: site.owner,
+      repo: site.repo,
+      workflowFile: site.workflowFile,
+      branch: site.branch,
+    })),
+    [
+      {
+        id: "hva",
+        domain: "highvolt.tech",
+        owner: "HighVolt-Analytics",
+        repo: "HVA-Website-Frontend",
+        workflowFile: "deploy.yml",
+        branch: "main",
+      },
+      {
+        id: "quantum-agent",
+        domain: "quantumagent.com.au",
+        owner: "HighVolt-Analytics",
+        repo: "QUANTUM-AGENT",
+        workflowFile: "deploy.yml",
+        branch: "main",
+      },
+      {
+        id: "quantum-edupass",
+        domain: "quantumedupass.com",
+        owner: "HighVolt-Analytics",
+        repo: "Quantum-Edupass",
+        workflowFile: "deploy.yml",
+        branch: "main",
+      },
+      {
+        id: "quantum-ledgerline",
+        domain: "quantumledgerline.com",
+        owner: "HighVolt-Analytics",
+        repo: "Ledgerline",
+        workflowFile: "deploy.yml",
+        branch: "main",
+      },
+      {
+        id: "quantum-visa-manager",
+        domain: "quantumvisamanager.com",
+        owner: "HighVolt-Analytics",
+        repo: "Quantum-Visa-Manager",
+        workflowFile: "deploy.yml",
+        branch: "main",
+      },
+    ],
+  );
   for (const website of websites.slice(0, 3)) {
     assert.equal(website.deploymentEnabled, undefined);
-    assert.equal(website.owner, "HighVolt-Analytics");
   }
-  const qvm = websites.find((site) => site.id === "quantum-visa-manager");
-  assert.equal(qvm?.repo, "Quantum-Visa-Manager");
-  assert.equal(qvm?.owner, "HighVolt-Analytics");
-  assert.equal(qvm?.workflowFile, "deploy.yml");
-  assert.equal(qvm?.branch, "main");
-  assert.equal(qvm?.domain, "quantumvisamanager.com");
 });
 
 test("JSON body types and unexpected fields are rejected", () => {

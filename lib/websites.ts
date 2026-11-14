@@ -25,7 +25,7 @@ export const websites = [
       id: "quantum-edupass",
       name: "Quantum EduPass",
       domain: "quantumedupass.com",
-      repo: "Quantum-Immigration",
+      repo: "Quantum-Edupass",
       owner: "HighVolt-Analytics",
       workflowFile: "deploy.yml",
       branch: "main",
