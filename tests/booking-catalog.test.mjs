@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { isLegacyBooking, siteAnswerRows } from "../lib/booking-answers.ts";
+import { calendarTileSiteText, calendarTileTooltip } from "../lib/booking-calendar-tile.ts";
 import { BOOKING_SITE_CARDS, bookingViewerAllowed, combineSiteReads, missingBookingConfig } from "../lib/booking-catalog.ts";
 
 test("booking catalog keeps every site off", () => {
@@ -94,5 +95,16 @@ test("booking routes keep the API token server-side and match the documented sta
   assert.match(ui, /Legacy QVM bookings \(v1\)/);
   assert.match(ui, /Previous month/);
   assert.match(ui, /\+\{overflow\} more/);
+  assert.match(ui, /calendarTileSiteText\(siteLabel\(row\.site\)\)/);
+  assert.match(ui, /calendarTileTooltip\(siteLabel\(row\.site\), row\.attendeeName\)/);
+  assert.doesNotMatch(ui, /attendeeName \|\| siteLabel/);
   assert.doesNotMatch(ui, /BOOKINGS_PORTAL_API_TOKEN/);
+});
+
+test("calendar tiles show the site label, not the attendee name", () => {
+  assert.equal(calendarTileSiteText("Quantum Visa Manager"), "Quantum Visa Manager");
+  assert.equal(calendarTileSiteText(""), "Unknown site");
+  assert.equal(calendarTileTooltip("Quantum Visa Manager", "Ada Lovelace"), "Quantum Visa Manager · Ada Lovelace");
+  assert.equal(calendarTileTooltip("Quantum Visa Manager", ""), "Quantum Visa Manager");
+  assert.equal(calendarTileTooltip("HighVolt", undefined), "HighVolt");
 });

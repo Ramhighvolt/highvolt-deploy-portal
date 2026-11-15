@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BOOKING_SITE_CARDS, type BookingSiteCard } from "@/lib/booking-catalog";
 import { isLegacyBooking, parseBookingAnswers, siteAnswerRows } from "@/lib/booking-answers";
+import { calendarTileSiteText, calendarTileTooltip } from "@/lib/booking-calendar-tile";
 
 type Invitee = { role?: string; name?: string; email?: string; personId?: string };
 
@@ -541,11 +542,11 @@ export default function BookingsSection() {
                             : "bg-[#1c2535] text-[#dbe7f5] hover:bg-[#243044]",
                         ].join(" ")}
                         type="button"
-                        title={`${siteLabel(row.site)} · ${row.attendeeName || "Visitor"}`}
+                        title={calendarTileTooltip(siteLabel(row.site), row.attendeeName)}
                         onClick={() => void openPopup([row], `${siteLabel(row.site)} · ${formatWhen(row)}`)}
                       >
                         <span className="font-medium">{formatChipTime(row)}</span>
-                        <span className="ml-1 opacity-80">{row.attendeeName || siteLabel(row.site)}</span>
+                        <span className="ml-1 opacity-80">{calendarTileSiteText(siteLabel(row.site))}</span>
                       </button>
                     ))}
                     {overflow > 0 ? (
