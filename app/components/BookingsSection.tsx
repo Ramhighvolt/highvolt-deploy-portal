@@ -42,7 +42,26 @@ type CalendarDay = {
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const VISIBLE_PER_DAY = 2;
-const ASSIGNEES = ["lakshmi", "arup", "prachi", "sabina", "jasisca", "khushi"];
+/** Roster person ids from the booking v2 assignee list. Display names are title-cased ids only. */
+const ASSIGNEES = ["lakshmi", "arup", "prachi", "sabina", "jasisca", "khushi"] as const;
+const ASSIGNEES_SET = new Set<string>(ASSIGNEES);
+
+function rosterDisplayName(personId: string): string {
+  const id = String(personId || "").trim().toLowerCase();
+  if (!id || !ASSIGNEES_SET.has(id)) return "";
+  return id.charAt(0).toUpperCase() + id.slice(1);
+}
+
+function assignedStaffNames(row: BookingRow): string[] {
+  const fromNotify = Object.keys(row.notifications || {})
+    .map((id) => rosterDisplayName(id))
+    .filter(Boolean);
+  if (fromNotify.length) return fromNotify;
+  return (row.invitees || [])
+    .filter((person) => person.role && person.role !== "visitor" && person.role !== "organizer")
+    .map((person) => rosterDisplayName(person.personId || ""))
+    .filter(Boolean);
+}
 
 function pad2(value: number) {
   return String(value).padStart(2, "0");
@@ -73,16 +92,6 @@ function bookingDayKey(row: BookingRow): string {
 
 function siteLabel(siteId: string | undefined) {
   return BOOKING_SITE_CARDS.find((item) => item.id === siteId)?.label || siteId || "Unknown site";
-}
-
-function assigneeNames(row: BookingRow): string {
-  const fromNotify = Object.keys(row.notifications || {});
-  if (fromNotify.length) return fromNotify.join(", ");
-  const fromInvitees = (row.invitees || [])
-    .filter((person) => person.role && person.role !== "visitor" && person.role !== "organizer")
-    .map((person) => person.personId || person.name || "")
-    .filter(Boolean);
-  return fromInvitees.length ? fromInvitees.join(", ") : "unassigned";
 }
 
 function formatWhen(row: BookingRow): string {
@@ -158,6 +167,8 @@ function BookingDetailCard({
     row.attendeeEmail ||
     String(parseBookingAnswers(row.answers || row.answersOriginal).email || "");
 
+  const staff = assignedStaffNames(row);
+
   return (
     <article className="rounded-xl border border-[#2a3548] bg-[#151c28] p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -171,12 +182,15 @@ function BookingDetailCard({
           {bookingKindLabel(row)}
         </span>
       </div>
+      <div className="mt-3 rounded-lg border border-[#2a3548] bg-[#101620] px-3 py-2">
+        <h5 className="text-[11px] font-medium uppercase tracking-wide text-[#6b7d96]">Assigned staff</h5>
+        <p className="mt-1 text-sm text-[#f0f4f8]">{staff.length ? staff.join(", ") : "Unassigned"}</p>
+      </div>
       <dl className="mt-3 grid gap-2 text-sm text-[#8b9bb4] sm:grid-cols-2">
         <div>Site: {siteLabel(row.site)}</div>
         <div>Name: {row.attendeeName || "not stored"}</div>
         <div>Email: {email || "not stored"}</div>
         <div>Date and time: {formatWhen(row)}</div>
-        <div>Assignee: {assigneeNames(row)}</div>
         <div>Status: {row.meetingStatus || row.state || "unknown"}</div>
       </dl>
 
@@ -460,7 +474,7 @@ export default function BookingsSection() {
               <option value="">All</option>
               {ASSIGNEES.map((person) => (
                 <option key={person} value={person}>
-                  {person}
+                  {rosterDisplayName(person)}
                 </option>
               ))}
             </select>
