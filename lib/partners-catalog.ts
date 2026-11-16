@@ -19,11 +19,11 @@ export const PARTNER_ACCOUNT_FIELDS = [
 export function missingPartnersConfig(env: {
   LEDGERLINE_PARTNERS_API_BASE?: string;
   LEDGERLINE_PARTNERS_ADMIN_TOKEN?: string;
-} = process.env): string[] {
-  return [
-    !env.LEDGERLINE_PARTNERS_API_BASE ? "LEDGERLINE_PARTNERS_API_BASE" : "",
-    !env.LEDGERLINE_PARTNERS_ADMIN_TOKEN ? "LEDGERLINE_PARTNERS_ADMIN_TOKEN" : "",
-  ].filter(Boolean);
+}): string[] {
+  const missing: string[] = [];
+  if (!env.LEDGERLINE_PARTNERS_API_BASE) missing.push("LEDGERLINE_PARTNERS_API_BASE");
+  if (!env.LEDGERLINE_PARTNERS_ADMIN_TOKEN) missing.push("LEDGERLINE_PARTNERS_ADMIN_TOKEN");
+  return missing;
 }
 
 export function sanitizePartnerAccounts(raw: unknown): PartnerAccount[] {

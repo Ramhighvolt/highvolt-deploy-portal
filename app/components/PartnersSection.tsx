@@ -44,36 +44,58 @@ export default function PartnersSection() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
 
+  const applyPartnersPayload = useCallback((response: Response, body: PartnersResponse | null) => {
+    if (response.status === 401) {
+      setError("Unauthorized");
+      setPayload(null);
+      return;
+    }
+    if (!response.ok || !body) {
+      setError(body?.error || "Unable to load partner accounts.");
+      setPayload(body);
+      return;
+    }
+    setError("");
+    setPayload(body);
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
-    setError("");
     try {
       const response = await fetch("/api/partners", { cache: "no-store" });
-      if (response.status === 401) {
-        setError("Unauthorized");
-        setPayload(null);
-        return;
-      }
       const body = (await response.json().catch(() => null)) as PartnersResponse | null;
-      if (!response.ok || !body) {
-        setError(body?.error || "Unable to load partner accounts.");
-        setPayload(body);
-        return;
-      }
-      setPayload(body);
+      applyPartnersPayload(response, body);
     } catch {
       setError("Unable to load partner accounts.");
       setPayload(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applyPartnersPayload]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/partners", { cache: "no-store" });
+        const body = (await response.json().catch(() => null)) as PartnersResponse | null;
+        if (cancelled) return;
+        applyPartnersPayload(response, body);
+      } catch {
+        if (!cancelled) {
+          setError("Unable to load partner accounts.");
+          setPayload(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [applyPartnersPayload]);
 
-  const partners = payload?.partners || [];
+  const partners = useMemo(() => payload?.partners || [], [payload]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return partners;
