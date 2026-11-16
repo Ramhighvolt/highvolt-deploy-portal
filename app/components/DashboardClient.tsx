@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import BookingsSection from "./BookingsSection";
+import PartnersSection from "./PartnersSection";
 import AutomationSection from "./automation/AutomationSection";
 import ClaritySection from "./ClaritySection";
 import GithubReposSection from "./GithubReposSection";
@@ -159,6 +160,7 @@ export default function DashboardClient({ userEmail }: { userEmail: string }) {
             {activeSection === "github-repos" && <GithubReposSection />}
             {activeSection === "automation" && <AutomationSection />}
             {activeSection === "bookings" && <BookingsSection />}
+            {activeSection === "partners" && <PartnersSection />}
             {activeSection === "settings" && <SettingsSection />}
           </div>
         </main>

@@ -9,6 +9,7 @@ export type AppSection =
   | "github-repos"
   | "automation"
   | "bookings"
+  | "partners"
   | "settings";
 
 export const SECTION_TITLES: Record<AppSection, string> = {
@@ -22,6 +23,7 @@ export const SECTION_TITLES: Record<AppSection, string> = {
   "github-repos": "GitHub Repos",
   automation: "Automation",
   bookings: "Bookings",
+  partners: "Partners",
   settings: "Settings",
 };
 
@@ -36,5 +38,6 @@ export const SECTION_DESCRIPTIONS: Record<AppSection, string> = {
   "github-repos": "GitHub repositories for production properties",
   automation: "Run Xero reports and UI test suites live from GitHub Actions",
   bookings: "Day calendar for demo bookings. v2 switches are off.",
+  partners: "Read-only Ledgerline partner accounts from /partnership/signup",
   settings: "Platform configuration and environment",
 };

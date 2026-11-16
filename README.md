@@ -51,6 +51,12 @@ Auth and deployment require these variables. Set them in the Vercel project **Se
 | `GITHUB_TOKEN` | Server-side token used for GitHub Actions history reads and workflow dispatches. Grant only the required repository access (including `HighVolt-Analytics/Quantum-Visa-Manager` Actions read/dispatch); never expose it to client code. |
 | `LEDGERLINE_PORTAL_DISPATCH_ENABLED` | Server-side gate for Ledgerline dispatch controls. Set to `true` only after the Ledgerline repository gate is enabled; keep unset or `false` to pause portal dispatch. Never prefix it with `NEXT_PUBLIC_`. |
 | `QVM_PORTAL_DISPATCH_ENABLED` | Server-side gate for Quantum Visa Manager portal dispatch. Set to `true` only after QVM automatic cutover is intentionally live; keep unset or `false` to pause portal dispatch. Independent of `QVM_PRODUCTION_CUTOVER_ENABLED` on GitHub. Never prefix it with `NEXT_PUBLIC_`. |
+| `BOOKINGS_API_BASE` | Shared booking Function App origin (no path). Used by the Bookings tab. |
+| `BOOKINGS_PORTAL_API_TOKEN` | Bearer token for booking staff reads. Server-only; never `NEXT_PUBLIC_`. |
+| `LEDGERLINE_PARTNERS_API_BASE` | Ledgerline site origin (no path), e.g. `https://www.quantumledgerline.com`. Used by the Partners tab. |
+| `LEDGERLINE_PARTNERS_ADMIN_TOKEN` | Shared secret matching Ledgerline `PARTNER_ADMIN_TOKEN`. Server-only; never `NEXT_PUBLIC_`. |
+
+See [`docs/partners-tab.md`](./docs/partners-tab.md) for Partners tab wiring. Do not set the Ledgerline/portal partner tokens until both the Ledgerline admin-list API and this Partners tab are ready to enable.
 
 **Microsoft redirect URI** (Azure portal):
 `https://webdeployment.highvolt.tech/api/auth/callback/microsoft-entra-id`
