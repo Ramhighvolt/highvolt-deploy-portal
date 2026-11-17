@@ -7,7 +7,7 @@
  * Safe to import from both client and server code (no secrets in here).
  */
 
-export type SuiteId = "xero" | "quantum-agent";
+export type SuiteId = "xero" | "quickbooks" | "quantum-agent";
 
 export type SuiteConfig = {
   id: SuiteId;
@@ -23,6 +23,14 @@ export const SUITES: Record<SuiteId, SuiteConfig> = {
     repo: "xero-report-automation",
     ref: "main",
   },
+  // QuickBooks lives in the same repo as Xero but is its own suite, so its
+  // runs, workflow allow-list and labels never mix with Xero's.
+  quickbooks: {
+    id: "quickbooks",
+    owner: "HighVolt-Analytics",
+    repo: "xero-report-automation",
+    ref: "main",
+  },
   "quantum-agent": {
     id: "quantum-agent",
     owner: "HighVolt-Analytics",
@@ -32,8 +40,35 @@ export const SUITES: Record<SuiteId, SuiteConfig> = {
 };
 
 export function isSuiteId(value: unknown): value is SuiteId {
-  return value === "xero" || value === "quantum-agent";
+  return value === "xero" || value === "quickbooks" || value === "quantum-agent";
 }
+
+/* --------------------------- QuickBooks --------------------------- */
+
+export const QBO_COMPANY = "Right And Bright International Company Limited";
+export const QBO_DOWNLOAD_WORKFLOW = "download-qbo-report.yml";
+export const QBO_LOGIN_WORKFLOW = "show-qbo-login.yml";
+export const QBO_LOGIN_ARTIFACT = "qbo-login-url";
+/** A queued QuickBooks run older than this means the office runner PC is offline. */
+export const QBO_RUNNER_OFFLINE_MS = 5 * 60_000;
+
+export const QBO_REPORTS = [
+  {
+    id: "Both",
+    label: "Both reports",
+    detail: "Balance Sheet + Profit and Loss by Class (two Excel files)",
+  },
+  {
+    id: "BalanceSheet",
+    label: "Balance Sheet",
+    detail: "Classic view · FYTD · Accrual · Total Only",
+  },
+  {
+    id: "ProfitAndLossByClass",
+    label: "Profit and Loss by Class",
+    detail: "Classic view · FYTD · Cash · Class",
+  },
+] as const;
 
 /* ----------------------------- Xero ----------------------------- */
 
@@ -179,6 +214,9 @@ export const QA_MAX_FEATURES_PER_LAUNCH = 8;
 export function allowedWorkflows(suite: SuiteId): string[] {
   if (suite === "xero") {
     return XERO_TENANTS.flatMap((t) => [t.downloadWorkflow, t.loginWorkflow]);
+  }
+  if (suite === "quickbooks") {
+    return [QBO_DOWNLOAD_WORKFLOW, QBO_LOGIN_WORKFLOW];
   }
   return QA_WORKFLOWS.map((w) => w.id);
 }

@@ -1,4 +1,7 @@
 import {
+  QBO_DOWNLOAD_WORKFLOW,
+  QBO_LOGIN_WORKFLOW,
+  QBO_REPORTS,
   QA_ENVIRONMENTS,
   QA_FEATURES,
   QA_MAX_FEATURES_PER_LAUNCH,
@@ -72,6 +75,25 @@ export async function POST(request: Request) {
           to_month: tm,
           to_day: td,
         },
+      });
+    } else return jsonError("Unknown action", 400);
+  } else if (body.suite === "quickbooks") {
+    if (body.action === "login") {
+      planned.push({
+        suite: "quickbooks",
+        workflow: QBO_LOGIN_WORKFLOW,
+        label: "QuickBooks login link",
+        inputs: {},
+      });
+    } else if (body.action === "download") {
+      const report = QBO_REPORTS.find((r) => r.id === body.report);
+      if (!report) return jsonError("Unknown report", 400);
+      planned.push({
+        suite: "quickbooks",
+        workflow: QBO_DOWNLOAD_WORKFLOW,
+        label: `QuickBooks · ${report.label}`,
+        // Boolean workflow inputs are sent as strings.
+        inputs: { report: report.id, headed: body.headed === true ? "true" : "false" },
       });
     } else return jsonError("Unknown action", 400);
   } else if (body.suite === "quantum-agent") {

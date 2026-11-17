@@ -176,7 +176,7 @@ export async function listArtifacts(
   );
   return res.data.artifacts
     // Refresh tokens and saved login sessions (auth-storage) are secrets: never surface them.
-    .filter((a) => !/refresh-token|auth-storage|storage[-_]state/i.test(a.name))
+    .filter((a) => !/refresh-token|auth-storage|storage[-_]state|ui-profile|cookie|session/i.test(a.name))
     // Login-link artifacts are plumbing for the "Get login link" flow, not results.
     .filter((a) => opts.includeLoginLinks || !/login-url$/i.test(a.name))
     .map((a) => ({
@@ -268,6 +268,19 @@ export async function readArtifactFile(
   const data = zip[path];
   if (!data) throw new Error("File not found in artifact");
   return data;
+}
+
+/** First file in an artifact whose path matches `pattern` (e.g. a login-link .txt). */
+export async function readArtifactFileMatching(
+  suite: SuiteId,
+  runId: number,
+  artifactId: number,
+  pattern: RegExp,
+): Promise<Uint8Array> {
+  const zip = unzipSync(await downloadArtifactZip(suite, runId, artifactId));
+  const path = Object.keys(zip).find((p) => safeEntry(p) && pattern.test(p));
+  if (!path) throw new Error("File not found in artifact");
+  return zip[path];
 }
 
 /* ----------------------- xlsx conversion ----------------------- */
