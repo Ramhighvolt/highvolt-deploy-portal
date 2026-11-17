@@ -2,9 +2,10 @@
 
 import { useState, type ReactNode } from "react";
 import QuantumAgentRunner from "./QuantumAgentRunner";
+import QuickBooksRunner from "./QuickBooksRunner";
 import XeroRunner from "./XeroRunner";
 
-type View = "hub" | "xero" | "quantum-agent";
+type View = "hub" | "xero" | "quickbooks" | "quantum-agent";
 
 const CARDS: {
   id: Exclude<View, "hub">;
@@ -20,6 +21,14 @@ const CARDS: {
       "Download Profit & Loss, Balance Sheet and more for Pactify, Clima or Other. Files land here and in OneDrive.",
     chips: ["3 tenants", "8 reports", "Excel · CSV · JSON"],
     icon: <span className="text-sm font-bold text-[#60a5fa]">X</span>,
+  },
+  {
+    id: "quickbooks",
+    title: "QuickBooks Report Automation",
+    description:
+      "Download the Balance Sheet and Profit and Loss by Class for Right And Bright. Runs on the office PC; files land here and in OneDrive.",
+    chips: ["1 company", "2 reports", "Excel · CSV · JSON"],
+    icon: <span className="text-sm font-bold text-[#60a5fa]">QB</span>,
   },
   {
     id: "quantum-agent",
@@ -45,7 +54,7 @@ export default function AutomationSection() {
           <span className="text-[#4b5b73]">/</span>
           <span className="font-medium text-[#f0f4f8]">{card.title}</span>
         </nav>
-        {view === "xero" ? <XeroRunner /> : <QuantumAgentRunner />}
+        {view === "xero" ? <XeroRunner /> : view === "quickbooks" ? <QuickBooksRunner /> : <QuantumAgentRunner />}
       </div>
     );
   }
@@ -55,7 +64,7 @@ export default function AutomationSection() {
       <p className="text-sm text-[#8b9bb4]">
         {CARDS.length} automations · click a card to open it. Runs execute on GitHub Actions and update here live.
       </p>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {CARDS.map((card) => (
           <button
             key={card.id}
