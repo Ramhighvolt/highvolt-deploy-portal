@@ -6,6 +6,10 @@ function isPublicPath(pathname: string): boolean {
   if (pathname === "/login") return true;
   if (pathname === "/favicon.ico") return true;
   if (pathname.startsWith("/api/auth")) return true;
+  // The Platform Console has its own operator sign-in (password plus a second factor) and its own session; every
+  // Console page and API checks that session itself, and all of it answers 404 unless CONSOLE_ENABLED=true.
+  if (pathname === "/console" || pathname.startsWith("/console/")) return true;
+  if (pathname.startsWith("/api/console/")) return true;
   if (pathname.startsWith("/_next")) return true;
   if (/\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/i.test(pathname)) return true;
   return false;
