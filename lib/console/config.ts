@@ -3,7 +3,7 @@ export type ConsoleConfig = {
   commerceUrl: string;
   /** The product whose clients this Console shows (the Commerce app id). */
   appId: string;
-  /** The reserved Login app id operators sign in to. */
+  /** The Login app id operators sign in to: its own app, never "platform" (which service accounts use). */
   platformAppId: string;
   secureCookies: boolean;
 };
@@ -34,7 +34,7 @@ function serviceUrl(name: string, value: string | undefined): string {
 
 export function loadConsoleConfig(env: Env = process.env): ConsoleConfig {
   const appId = (env.CONSOLE_APP_ID ?? "quantum-quber").trim();
-  const platformAppId = (env.CONSOLE_PLATFORM_APP_ID ?? "platform").trim();
+  const platformAppId = (env.CONSOLE_PLATFORM_APP_ID ?? "console").trim();
   if (!/^[a-z0-9][a-z0-9-]{2,63}$/.test(appId)) {
     throw new Error("CONSOLE_APP_ID is not a valid app id");
   }

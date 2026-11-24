@@ -45,7 +45,7 @@ test("the Console is off unless switched on and refuses an unsafe or incomplete 
   const local = loadConsoleConfig({ CONSOLE_LOGIN_URL: "http://localhost:8080/", CONSOLE_COMMERCE_URL: "http://127.0.0.1:8082" });
   assert.equal(local.loginUrl, "http://localhost:8080");
   assert.equal(CFG.appId, "quantum-quber");
-  assert.equal(CFG.platformAppId, "platform");
+  assert.equal(CFG.platformAppId, "console");
 });
 
 test("claims are decoded for display only; bad tokens read as nothing; roles split into writers and readers", () => {
@@ -90,7 +90,7 @@ test("the password step returns a challenge, never tokens, and anything else is 
   const { f, calls } = fake({ "POST https://login.example.test/login": challenge });
   const r = await passwordLogin(f, CFG, " op@ops.test ", "pw");
   assert.deepEqual(r, { ok: true, challenge: { step: "verify", token: "chal-1", methods: ["totp", "recovery_code"] } });
-  assert.deepEqual(JSON.parse(calls[0].body), { email: "op@ops.test", password: "pw", app_id: "platform" });
+  assert.deepEqual(JSON.parse(calls[0].body), { email: "op@ops.test", password: "pw", app_id: "console" });
 
   const tokens = fake({ "POST https://login.example.test/login": { body: { access_token: "a", refresh_token: "r" } } });
   assert.deepEqual(await passwordLogin(tokens.f, CFG, "op@ops.test", "pw"), { ok: false, status: 502 });
